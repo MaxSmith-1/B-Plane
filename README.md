@@ -3,7 +3,7 @@ Steps for Compiling on Windows:
 
 0. Download mingw-32 / cmake
 
-1. Download conan (pip install conan)
+1. Download conan: '''pip install conan'''
 
 2. In build folder, run (conan install .. --output-folder=. --build=missing --profile:build=../mingw_profile --profile:host=../mingw_profile
 )
