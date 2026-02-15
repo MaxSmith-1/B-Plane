@@ -1,6 +1,6 @@
 # Configure Project
 cmake_minimum_required(VERSION 3.10)
-project(Orbit_Simulator VERSION 1.0.0 LANGUAGES CXX)
+project(B_Plane VERSION 1.0.0 LANGUAGES CXX)
 
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing" FORCE)
 
@@ -17,49 +17,44 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(jsoncpp REQUIRED)
+find_package(CURL REQUIRED)
 
-# Build the nrlmsise-00 library
-add_subdirectory(dependencies/nrlmsise-00)
 
 # Generate executable
-add_executable(Orbit_Simulator 
+add_executable(B_Plane 
     main.cpp
     src/Simulator.cpp
 )
 
 # Link libraries - Use lowercase target names for Conan packages
-target_link_libraries(Orbit_Simulator 
+target_link_libraries(B_Plane 
     PRIVATE 
     Eigen3::Eigen
     boost::boost
     JsonCpp::JsonCpp
-    nrlmsise00  
+    CURL::libcurl
 )
 
-target_include_directories(Orbit_Simulator PRIVATE src)
+target_include_directories(B_Plane PRIVATE src)
 
 # Copy executable
 if(WIN32)
-    add_custom_command(TARGET Orbit_Simulator POST_BUILD
+    add_custom_command(TARGET B_Plane POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy 
-            $<TARGET_FILE:Orbit_Simulator>
-            ${CMAKE_SOURCE_DIR}/executable/Orbit_Simulator.exe
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:nrlmsise00>
+            $<TARGET_FILE:B_Plane>
+            ${CMAKE_SOURCE_DIR}/executable/B_Plane.exe
             ${CMAKE_SOURCE_DIR}/executable/
         COMMAND ${CMAKE_COMMAND} -E remove 
-            $<TARGET_FILE:Orbit_Simulator>
+            $<TARGET_FILE:B_Plane>
     )
 else()
     # For Linux
-    add_custom_command(TARGET Orbit_Simulator POST_BUILD
+    add_custom_command(TARGET B_Plane POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy 
-            $<TARGET_FILE:Orbit_Simulator>
-            ${CMAKE_SOURCE_DIR}/executable/Orbit_Simulator
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:nrlmsise00>
+            $<TARGET_FILE:B_Plane>
+            ${CMAKE_SOURCE_DIR}/executable/B_Plane
             ${CMAKE_SOURCE_DIR}/executable/
         COMMAND ${CMAKE_COMMAND} -E remove 
-            $<TARGET_FILE:Orbit_Simulator>
+            $<TARGET_FILE:B_Plane>
     )
 endif()

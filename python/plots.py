@@ -18,7 +18,7 @@ for i, file in enumerate(output_directory.iterdir()):
     print(sim_df)
 
     # Earth sphere
-    r_earth = 6378 
+    r_earth = 695700 
     points = np.linspace(0, 2*np.pi, 1000)
     x_earth = r_earth*np.cos(points)
     y_earth = r_earth*np.sin(points)
@@ -35,7 +35,7 @@ for i, file in enumerate(output_directory.iterdir()):
     if i == 0:
         plt.plot(x_earth, y_earth, color='blue')
     
-    plt.plot(sim_df.ECI_X, sim_df.ECI_Y)
+    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Y)
     plt.xlabel("X [km]")
     plt.ylabel("Y [km]")
     plt.axis('square')
@@ -49,7 +49,7 @@ for i, file in enumerate(output_directory.iterdir()):
     if i == 0:
         plt.plot(x_earth, y_earth, color='blue')
     
-    plt.plot(sim_df.ECI_X, sim_df.ECI_Z)
+    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z)
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
@@ -62,7 +62,7 @@ for i, file in enumerate(output_directory.iterdir()):
     if i == 0:
         plt.plot(x_earth, y_earth, color='blue')
     
-    plt.plot(sim_df.ECI_Y, sim_df.ECI_Z)
+    plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z)
     plt.xlabel("y [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')

@@ -10,12 +10,15 @@
 int main(int argc, char* argv[]){
 
 
-    std::cout << "Welcome to the Orbit Simulator" <<std::endl;
+    std::cout << "Welcome to the B-Plane Optimizer" <<std::endl;
 
     // Read in inputs
     int tf = std::stoi(argv[1]);
     std::string spacecraft = argv[2];
     std::string central_body = argv[3];
+
+    // Monte Carlo Trials = argv[4]
+    // Number of Threads = argv[5]
 
     std::cout << "Loading Json inputs" << std::endl;
 

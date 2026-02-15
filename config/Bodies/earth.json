@@ -4,15 +4,6 @@
     "radius": 6378,
     "polar_radius": 6356,
     "equatorial_radius": 6278,
-    "J2": 1e-3,
-    "alternate_bodies": 
-    [
-        "301",
-        "599"
-    ],
-    "alternate_bodies_mu": [
-        4902.8,
-        1.267e8
-    ]
+    "J2": 1e-3
 
 }

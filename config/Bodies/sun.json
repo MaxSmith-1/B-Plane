@@ -1,0 +1,8 @@
+{
+    "name": "sun",
+    "mass": 1.98841e30,
+    "radius": 695700,
+    "polar_radius": 695700,
+    "equatorial_radius": 695700,
+    "J2": 2e-7
+}
