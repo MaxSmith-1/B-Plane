@@ -4,7 +4,7 @@
     "mass": 1000,
     "reference_area": 10, 
     "cd": 0.5,  
-    "date": 1767400865,
+    "date": 1787410865,
     "initial_condition": {
         "day of year": 100,
         "seconds": 100,
@@ -15,7 +15,8 @@
         "eci_velocity": [1, 6.31, 0]
     },
     "abs_tol": 1e-12,
-    "rel_tol": 1e-12
+    "rel_tol": 1e-12,
+    "planet_tol" : 1e-3
 }
 
 

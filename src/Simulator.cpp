@@ -20,6 +20,13 @@
 
 #include "Nrlmsise00.hpp"
 #include <ctime>
+#include <curl/curl.h>
+
+#include <sstream>
+#include <ctime>
+#include <chrono>
+#include <typeinfo>
+
 
 using namespace boost::numeric::odeint;
 
@@ -65,7 +72,106 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
     start_of_year.tm_min = 0;
     start_of_year.tm_sec = 0;
 
+    // Set up settings 
 
+    alternate_bodies = {"10"};
+    alternate_bodies_mu = {1.327e11};
+
+    Json::Value planets = central_body["alternate_bodies"];
+    Json::Value mus = central_body["alternate_bodies_mu"];
+
+    std::cout << planets << std::endl;
+
+    for(unsigned int i = 0; i < planets.size(); i++){
+        alternate_bodies.push_back(planets[i].asString());
+        alternate_bodies_mu.push_back(mus[i].asDouble());
+        
+    }
+
+    std::string planetary_step_size = std::to_string(static_cast<int>(tf * spacecraft["planet_tol"].asDouble()));
+    std::string initial_date = unix_to_string(spacecraft["date"].asInt());
+    std::string final_date = unix_to_string(spacecraft["date"].asInt() + tf);
+    
+    for(unsigned int i = 0; i < alternate_bodies.size(); i++){
+
+        // Initialize libcurl
+        CURL* curl;
+        CURLcode res;
+        std::string responseData;
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+
+
+        if(curl) {
+
+            std::string input_url = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text";
+            input_url += "&COMMAND='" + alternate_bodies[i] + "'";
+            input_url += "&OBJ_DATA='YES'";
+            input_url += "&MAKE_EPHEM='YES'";
+            input_url += "&EPHEM_TYPE='VECTORS'";
+            input_url += "&CSV_FORMAT='YES'";
+            input_url += "&CENTER='500@399'";
+            input_url += "&VEC_TABLE='1'";
+            input_url += "&START_TIME='" + initial_date + "'";
+            input_url += "&STOP_TIME='" + final_date + "'";
+            input_url += "&STEP_SIZE='" + planetary_step_size + "'";
+
+            std::cout << input_url;
+            curl_easy_setopt(curl, CURLOPT_URL, input_url.c_str());
+            
+            // Set the callback function to handle response
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+            
+            // Follow redirects
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            
+            // Perform the request
+            res = curl_easy_perform(curl);
+
+            //std::cout << res << std::endl;
+            
+            // Check for errors
+            if(res != CURLE_OK) {
+                std::cerr << "curl_easy_perform() failed: " 
+                        << curl_easy_strerror(res) << std::endl;
+            } else {
+                std::cout << "Response: " << responseData << std::endl;
+            }
+            
+            //std::cout << typeid(responseData).name() << std::endl;
+            
+            // Cleanup
+            curl_easy_cleanup(curl);
+
+            // Parse the data for xyz coordinates
+            size_t startPos = responseData.find("$$SOE");
+
+            
+            startPos += 5;  // Move past the start delimiter
+            
+            size_t endPos = responseData.find("$$EOE", startPos);
+            
+            std::string body_data = responseData.substr(startPos, endPos - startPos);
+
+            // std::cout << body_data << std::endl;
+
+            std::string output_string = "output/planets/" + alternate_bodies[i] + ".csv";
+
+            if(i == 0){
+                output_string = "output/planets/sun_coordinates.csv";
+            }
+
+            std::ofstream file(output_string);
+
+            file << body_data;
+            file.close();
+
+        }
+
+        curl_global_cleanup();
+    }
+        
 
     #ifdef _WIN32
         this->year_start_unix = static_cast<double>(_mkgmtime(&start_of_year));
@@ -190,8 +296,7 @@ void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, co
     // Project drag force to negative relative velocity vector direction
     Eigen::Vector3d F_drag = -0.5*spacecraft["reference_area"].asDouble()*spacecraft["cd"].asDouble()*density*std::pow(v_rel.norm(), 2)*v_rel.normalized();
     
-    std::cout << F_drag << std::endl;
-    // Divide by satellite mass for total drag acceleration
+   // Divide by satellite mass for total drag acceleration
     Eigen::Vector3d a_drag = F_drag / spacecraft["mass"].asDouble();
 
     // J2 acceleration
@@ -201,24 +306,110 @@ void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, co
     double J2_y = J2_coefficient*x[1]*((5*std::pow(x[2], 2) / std::pow(r, 2)) - 1);
     double J2_z = J2_coefficient*x[2]*((5*std::pow(x[2], 2) / std::pow(r, 2)) - 3);
 
-    // TODO: Add gravitational effect of Moon and Jupiter
-    // TODO: Add solar radiation pressure
+    double time_percent = t / tf;    
+    
+    // Read in Alternate Body Coordinates
+    std::vector<std::vector<double>> coordinates;
 
-    // Add perturbing forces to two-body problem and integrate
+
+    double alt_accel_x, alt_accel_y, alt_accel_z = 0;
+    // for(unsigned int i = 0; i < alternate_bodies.size(); i++){
+
+    //     std::vector<std::vector<double>> temp_coordinates;
+    //     std::string filename = "output/" + alternate_bodies[i] + ".csv";
+
+    //     if(i == 0){
+    //         filename = "output/sun_coordinates.csv";
+    //     }
+    //     std::ifstream file(filename);
+    //     std::string line;
+
+    //     // Loop through each line
+    //     while(std::getline(file, line)){
+
+    //         std::stringstream ss(line);
+    //         std::string cell_str;
+    //         std::vector<double> row;
+
+    //         // Parse each line by comma
+
+    //         while (std::getline(ss, cell_str, ',')) {
+    //             try {
+    //                 // Convert string to double and add to the row vector
+    //                 row.push_back(std::stod(cell_str));
+    //             } catch (const std::invalid_argument& e) {
+    //                 continue;
+    //                 // Handle error or skip the value
+    //             }
+    //         }
+    //         temp_coordinates.push_back(row);
+    //     }
+
+    //     file.close();
+    //     // i --> row
+    //     // j -- > column
+
+
+    //     // Interpolate coordinate matrix for current time
+    //     // Skip first row for some reason
+    //     double planet_t0 = temp_coordinates[1][0];
+
+    //     double planet_tf = temp_coordinates[temp_coordinates.size() - 1][0];
+
+    //     double planet_t = planet_t0 + ((planet_tf - planet_t0) * time_percent);
+       
+        
+    //     for(unsigned int j = 2; j< temp_coordinates.size(); j++){
+            
+    //         // Searching from planet_t0 to planet_t
+    //         if(temp_coordinates[j][0] > planet_t){
+
+    //             double mutiplier = (planet_t - temp_coordinates[j-1][0]) / (temp_coordinates[j][0] - temp_coordinates[j-1][0]);
+
+    //             double x = (mutiplier * (temp_coordinates[j][1] - temp_coordinates[j - 1][1])) + temp_coordinates[j - 1][1];
+    //             double y = (mutiplier * (temp_coordinates[j][2] - temp_coordinates[j - 1][2])) + temp_coordinates[j - 1][2];
+    //             double z = (mutiplier * (temp_coordinates[j][3] - temp_coordinates[j - 1][3])) + temp_coordinates[j - 1][3];
+
+                
+    //             coordinates.push_back({x, y, z});
+    //             break;
+    //         } 
+
+            
+    //     }
+
+    //     // TODO: Convert coordinates from ICRF to ECI (Right now, just assuming these reference frames are the same)
+    //     alt_accel_x += -1 * alternate_bodies_mu[i] / coordinates[i][0];
+    //     alt_accel_y += -1 * alternate_bodies_mu[i] / coordinates[i][1];
+    //     alt_accel_z += -1 * alternate_bodies_mu[i] / coordinates[i][2];
+
+    // }
+
+    
+
+
+    // TODO: Convert coordinates from ICRF to ECI (Right now, just assuming these reference frames are the same)
+
+
+    // TODO: Add solar radiation pressure using canonball method
+
+     
+
+    // Add all perturbing forces to two-body problem and integrate
     dxdt[0] = x[3];
     dxdt[1] = x[4];
     dxdt[2] = x[5];
 
-    dxdt[3] = (-(mu / std::pow(r, 3)) * x[0]) + a_drag[0] + J2_x;
-    dxdt[4] = (-(mu / std::pow(r, 3)) * x[1]) + a_drag[1] + J2_y;
-    dxdt[5] = (-(mu / std::pow(r, 3)) * x[2]) + a_drag[2] + J2_z;
+    dxdt[3] = (-(mu / std::pow(r, 3)) * x[0]) + a_drag[0] + J2_x + alt_accel_x;
+    dxdt[4] = (-(mu / std::pow(r, 3)) * x[1]) + a_drag[1] + J2_y + alt_accel_y;
+    dxdt[5] = (-(mu / std::pow(r, 3)) * x[2]) + a_drag[2] + J2_z + alt_accel_z;
 
 }
 
 // Function that calculates derived state values on each simulation loop
-// TODO: Convert angular orbital parameters to degrees
 Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
 
+    double rad_to_deg = 180 / M_PI;
     // DERIVED STATES TO CALCULATE
     // a,e,i,raan, omega, f, E, M, n, p, h, flight path angle
     Eigen::Vector3d r_vec(state[0], state[1], state[2]);
@@ -278,6 +469,7 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
 
     double i = std::acos((h_vec / h).dot(z));
 
+
     // Longitude of Ascending Node
     double laan = std::acos(x.dot(z.cross(h_vec / h)) / std::sin(i));
 
@@ -298,6 +490,15 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     double lat = lla_calc[0];
     double lon = lla_calc[1];
     double alt = lla_calc[2];
+
+    // Convert angular quantities to degrees
+    f = f * rad_to_deg; 
+    E = E * rad_to_deg; 
+    M = M * rad_to_deg; 
+    gamma = gamma * rad_to_deg; 
+    i = i * rad_to_deg; 
+    laan = laan * rad_to_deg; 
+    omega = omega * rad_to_deg; 
 
     Eigen::VectorXd derived_state(28);
 
@@ -480,4 +681,38 @@ void Simulator::write_output(std::vector<double>& time,
     
     file.close();
     std::cout << "Data written to " << filepath << std::endl;
+}
+
+
+size_t Simulator::write_callback(void* contents, size_t size, size_t nmemb, std::string* userp) {
+    size_t totalSize = size * nmemb;
+    userp->append((char*)contents, totalSize);
+    return totalSize;
+}
+
+std::string Simulator::unix_to_string(int unixTimeSeconds) {
+    // Convert to time_t
+    std::time_t time = static_cast<std::time_t>(unixTimeSeconds);
+    
+    // Convert to tm structure (UTC)
+    std::tm* tm = std::gmtime(&time);
+    
+    // Month abbreviations
+    const char* months[] = {
+        "01", "02", "03", "04", "05", "06",
+        "07", "08", "09", "10", "11", "12"
+    };
+    
+    // Format the string
+    std::ostringstream oss;
+    oss << std::setfill('0')
+        << std::setw(4) << (tm->tm_year + 1900) << "-"
+        << months[tm->tm_mon] << "-"
+        << std::setw(2) << tm->tm_mday << "%20"
+        << std::setw(2) << tm->tm_hour << ":"
+        << std::setw(2) << tm->tm_min << ":"
+        << std::setw(2) << tm->tm_sec << "."
+        << std::setw(3) << 0;
+
+    return oss.str();
 }
