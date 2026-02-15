@@ -1,0 +1,11 @@
+[requires]
+eigen/3.4.0
+boost/1.83.0
+jsoncpp/1.9.5
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+boost/*:header_only=True
