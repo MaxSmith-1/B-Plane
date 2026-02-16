@@ -17,7 +17,7 @@ class Simulator
     public:
 
     // Initialze Constructor
-    Simulator(double tf, Json::Value spacecraft, Json::Value central_body);
+    Simulator(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo);
     
     // Initialize simulation loop function
     void simulate();
@@ -28,11 +28,19 @@ class Simulator
     double tf;
     Json::Value spacecraft;
     Json::Value central_body;
+    bool monte_carlo;
 
     double abs_tol;
     double rel_tol;
     int burn_counter;
     int num_burns;
+
+    // Target body variables
+    std::string target_body;
+    double target_body_mu;
+
+    // Cached planet coordinates
+    std::vector<std::vector<double>> planet_matrix;
 
     // Gravitational Constant
     double G = 6.674e-20;
@@ -66,5 +74,13 @@ class Simulator
 
     // Function that converts unix time to specific datestring for NASA Horizons API
     std::string unix_to_string(int unixTimeSeconds);
+
+    // Function to load planet data into ode function
+    void load_planet_data();
+
+    // Function to get target coordinates
+    Eigen::Vector3d get_target(double t, Eigen::Vector3d r_sc_rel_sun, bool position);
+    
+    // Function to generate randomized state for monte carlo run
 
 };

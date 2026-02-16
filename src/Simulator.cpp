@@ -30,12 +30,13 @@
 using namespace boost::numeric::odeint;
 
 
-Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body){
+Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo){
 
 
     this->tf = tf;
     this->spacecraft = spacecraft;
     this->central_body = central_body;
+    this-> monte_carlo = monte_carlo;
 
     mu = G*central_body["mass"].asDouble();
 
@@ -56,117 +57,109 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
     burn_counter = 0;
     num_burns = spacecraft["burns"].size();
 
+    // TODO: Set this up for spacecraft["target_body"]
 
     // Set up settings
-    // alternate_bodies = {"10"};
-    // alternate_bodies_mu = {1.327e11};
 
-    // Json::Value planets = central_body["alternate_bodies"];
-    // Json::Value mus = central_body["alternate_bodies_mu"];
+    Json::Value target = spacecraft["target_body"];
+    Json::Value target_mass = spacecraft["target_body_mass"];
 
-    // std::cout << planets << std::endl;
-
-    // for(unsigned int i = 0; i < planets.size(); i++){
-    //     alternate_bodies.push_back(planets[i].asString());
-    //     alternate_bodies_mu.push_back(mus[i].asDouble());
-        
-    // }
-
-    // std::string planetary_step_size = std::to_string(static_cast<int>(tf * spacecraft["planet_tol"].asDouble()));
-    // std::string initial_date = unix_to_string(spacecraft["date"].asInt());
-    // std::string final_date = unix_to_string(spacecraft["date"].asInt() + tf);
-    
-    // for(unsigned int i = 0; i < alternate_bodies.size(); i++){
-
-    //     // Initialize libcurl
-    //     CURL* curl;
-    //     CURLcode res;
-    //     std::string responseData;
-    //     curl_global_init(CURL_GLOBAL_DEFAULT);
-    //     curl = curl_easy_init();
+    target_body = target.asString();
+    target_body_mu = G * target_mass.asDouble();
 
 
-    //     if(curl) {
 
-    //         std::string input_url = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text";
-    //         input_url += "&COMMAND='" + alternate_bodies[i] + "'";
-    //         input_url += "&OBJ_DATA='YES'";
-    //         input_url += "&MAKE_EPHEM='YES'";
-    //         input_url += "&EPHEM_TYPE='VECTORS'";
-    //         input_url += "&CSV_FORMAT='YES'";
-    //         input_url += "&CENTER='500@399'";
-    //         input_url += "&VEC_TABLE='1'";
-    //         input_url += "&START_TIME='" + initial_date + "'";
-    //         input_url += "&STOP_TIME='" + final_date + "'";
-    //         input_url += "&STEP_SIZE='" + planetary_step_size + "'";
+    // Planetary tol is the number of divisions
+    std::string planetary_step_size = std::to_string(static_cast<int>(tf * spacecraft["planet_tol"].asDouble()));
 
-    //         std::cout << input_url;
-    //         curl_easy_setopt(curl, CURLOPT_URL, input_url.c_str());
-            
-    //         // Set the callback function to handle response
-    //         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-    //         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
-            
-    //         // Follow redirects
-    //         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-            
-    //         // Perform the request
-    //         res = curl_easy_perform(curl);
-
-    //         //std::cout << res << std::endl;
-            
-    //         // Check for errors
-    //         if(res != CURLE_OK) {
-    //             std::cerr << "curl_easy_perform() failed: " 
-    //                     << curl_easy_strerror(res) << std::endl;
-    //         } else {
-    //             std::cout << "Response: " << responseData << std::endl;
-    //         }
-            
-    //         //std::cout << typeid(responseData).name() << std::endl;
-            
-    //         // Cleanup
-    //         curl_easy_cleanup(curl);
-
-    //         // Parse the data for xyz coordinates
-    //         size_t startPos = responseData.find("$$SOE");
-
-            
-    //         startPos += 5;  // Move past the start delimiter
-            
-    //         size_t endPos = responseData.find("$$EOE", startPos);
-            
-    //         std::string body_data = responseData.substr(startPos, endPos - startPos);
-
-    //         // std::cout << body_data << std::endl;
-
-    //         std::string output_string = "output/planets/" + alternate_bodies[i] + ".csv";
-
-    //         if(i == 0){
-    //             output_string = "output/planets/sun_coordinates.csv";
-    //         }
-
-    //         std::ofstream file(output_string);
-
-    //         file << body_data;
-    //         file.close();
-
-    //     }
-
-    //     curl_global_cleanup();
-    // }
-        
-
-    // #ifdef _WIN32
-    //     this->year_start_unix = static_cast<double>(_mkgmtime(&start_of_year));
-    // #else
-    //     this->year_start_unix = static_cast<double>(timegm(&start_of_year));
-    // #endif
+    // Dates are inputted as unix time, outputted as date strings
+    std::string initial_date = unix_to_string(spacecraft["date"].asInt());
+    std::string final_date = unix_to_string(spacecraft["date"].asInt() + tf);
 
     
-}
+    
+    // Initialize libcurl
+    CURL* curl;
+    CURLcode res;
+    std::string responseData;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+
+    if(curl) {
+
+        std::string input_url = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text";
+        input_url += "&COMMAND='" + target_body + "'";
+        input_url += "&OBJ_DATA='YES'";
+        input_url += "&MAKE_EPHEM='YES'";
+        input_url += "&EPHEM_TYPE='VECTORS'";
+        input_url += "&CSV_FORMAT='YES'";
+        input_url += "&CENTER='500@10'";
+        input_url += "&VEC_TABLE='2'"; // Position and Velocity state
+        input_url += "&START_TIME='" + initial_date + "'";
+        input_url += "&STOP_TIME='" + final_date + "'";
+        input_url += "&STEP_SIZE='" + planetary_step_size + "'";
+
+        std::cout << input_url;
+        curl_easy_setopt(curl, CURLOPT_URL, input_url.c_str());
+        
+        // Set the callback function to handle response
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+        
+        // Follow redirects
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        //std::cout << res << std::endl;
+        
+        // Check for errors
+        if(res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " 
+                    << curl_easy_strerror(res) << std::endl;
+        } else {
+            std::cout << "Response: " << responseData << std::endl;
+        }
+        
+        //std::cout << typeid(responseData).name() << std::endl;
+        
+        // Cleanup
+        curl_easy_cleanup(curl);
+
+        // Parse the data for xyz coordinates
+        size_t startPos = responseData.find("$$SOE");
+
+        
+        startPos += 5;  // Move past the start delimiter
+        
+        size_t endPos = responseData.find("$$EOE", startPos);
+        
+        std::string body_data = responseData.substr(startPos, endPos - startPos);
+
+        // std::cout << body_data << std::endl;
+
+        std::string output_string = "output/planets/" + target_body + ".csv";
+
+        std::ofstream file(output_string);
+
+        file << body_data;
+        file.close();
+
+    }
+    curl_global_cleanup();
+
+    // Load in planet coordinates
+    load_planet_data();
+
+
+    }
+    
 
 void Simulator::simulate(){
+
+
 
     // Define rk45 solver to work with Eigen library vectors
     typedef runge_kutta_dopri5<Eigen::VectorXd, double, Eigen::VectorXd, double, vector_space_algebra> error_stepper_type;
@@ -214,45 +207,61 @@ void Simulator::observe(Eigen::VectorXd &state , double t){
     // Check for burn events
     if(t >= spacecraft["burns"][burn_counter]["time"].asDouble() && burn_counter < num_burns){
 
-        std::cout << "Execuring burn at [" << spacecraft["burns"][burn_counter]["delta_v_rtn"][0].asDouble() <<
-        ", " << spacecraft["burns"][burn_counter]["delta_v_rtn"][1].asDouble() << ", " <<
-        spacecraft["burns"][burn_counter]["delta_v_rtn"][2].asDouble() << "] (rtn) km/s at t = " << 
-        t << std::endl;
+        std::cout << "Execuring burn" << std::endl;
 
         // Convert burn in rtn frame to eci frame
-        std::vector<double> delta_v_rtn_vec = {
-        spacecraft["burns"][burn_counter]["delta_v_rtn"][0].asDouble(),
-        spacecraft["burns"][burn_counter]["delta_v_rtn"][1].asDouble(),
-        spacecraft["burns"][burn_counter]["delta_v_rtn"][2].asDouble()
-        };
 
-        Eigen::Vector3d delta_v_eci(Functions::rtn_to_eci_delta_v(state, delta_v_rtn_vec));
-        
+    //     if (spacecraft["burns"][burn_counter]["delta_v_icrf"].isNull()){
+
+    //         std::vector<double> delta_v_rtn_vec = {
+    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][0].asDouble(),
+    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][1].asDouble(),
+    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][2].asDouble()
+    //         };
+    //         Eigen::Vector3d delta_v_icrf(Functions::rtn_to_eci_delta_v(state, delta_v_rtn_vec));
+    // }
+
+
         // Add delta-v to current velocity state
-        state[3] += delta_v_eci[0];
-        state[4] += delta_v_eci[1];
-        state[5] += delta_v_eci[2];
+        state[3] += spacecraft["burns"][burn_counter]["delta_v_icrf"][0].asDouble();
+        state[4] += spacecraft["burns"][burn_counter]["delta_v_icrf"][1].asDouble();
+        state[5] += spacecraft["burns"][burn_counter]["delta_v_icrf"][2].asDouble();
 
         burn_counter++;
     }
+
+    //std::cout << t*100 / tf << std::endl;
 }
 
 // Function that gets called on every simulation loop
 void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, const double t){
 
     // Initialize derivitive vector
-    dxdt = Eigen::VectorXd(x) * 0.0;
+    if (dxdt.size() != x.size()) {
+        dxdt.resize(x.size());
+    }
+    dxdt.setZero();
 
-    double r = x.head(3).norm();
+    Eigen::Vector3d r_sc_rel_sun = x.head(3);
 
-    // Two Body Problem
+    // Add gravitational effect of target body (just need the coordinates)
+    // ASSUME just 1 target body
+    Eigen::Vector3d r_sc_rel_target = get_target(t, r_sc_rel_sun, true);
+
+    // std::cout << r_target_rel_sun[0] << std::endl;
+    
+    double target_accel_x = (-target_body_mu / pow(r_sc_rel_target.norm(), 3)) * r_sc_rel_target[0];
+    double target_accel_y = (-target_body_mu / pow(r_sc_rel_target.norm(), 3)) * r_sc_rel_target[1];
+    double target_accel_z = (-target_body_mu / pow(r_sc_rel_target.norm(), 3)) * r_sc_rel_target[2];
+
+    // Two Body Problem + Gravity of Target Body
     dxdt[0] = x[3];
     dxdt[1] = x[4];
     dxdt[2] = x[5];
 
-    dxdt[3] = (-(mu / std::pow(r, 3)) * x[0]);
-    dxdt[4] = (-(mu / std::pow(r, 3)) * x[1]);
-    dxdt[5] = (-(mu / std::pow(r, 3)) * x[2]);
+    dxdt[3] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[0]) + target_accel_x;
+    dxdt[4] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[1]) + target_accel_y;
+    dxdt[5] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[2]) + target_accel_z;
 
 }
 
@@ -262,6 +271,9 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     double rad_to_deg = 180 / M_PI;
     // DERIVED STATES TO CALCULATE
     // a,e,i,raan, omega, f, E, M, n, p, h, flight path angle
+
+    // B-Plane variables
+    // r_rel_target, v_rel_target |b|, S, T, R, B vectors
     Eigen::Vector3d r_vec(state[0], state[1], state[2]);
     Eigen::Vector3d v_vec(state[3], state[4], state[5]);
 
@@ -335,6 +347,38 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     }
 
 
+
+    // Should probably spit out sphere of influence
+
+
+
+    // Build B-Plane variables
+    // r_rel_target, v_rel_target |b|, S, T, R, B vectors
+    Eigen::Vector3d r_sc_rel_target = get_target(t, r_vec, true);
+    Eigen::Vector3d v_sc_rel_target = get_target(t, v_vec, false);
+    Eigen::Vector3d h_sc_rel_target = r_sc_rel_target.cross(v_sc_rel_target);
+    Eigen::Vector3d e_sc_rel_target = ((1/target_body_mu) * (v_sc_rel_target.cross(h_sc_rel_target))) - (r_sc_rel_target/r_sc_rel_target.norm());
+
+    double r_soi = std::pow((1.0 * target_body_mu / mu), 0.4) * a;
+
+    bool in_target_soi = r_sc_rel_target.norm() < r_soi;
+
+    double V_infinity = std::sqrt(std::pow(v_sc_rel_target.norm(), 2) - ((2*target_body_mu) / r_sc_rel_target.norm()));
+    double b_impact_parameter = (h_sc_rel_target).norm() / V_infinity;
+    double beta = std::acos(1.0 / e_sc_rel_target.norm());
+
+    // B-Plane coordinate frame vectors     
+    Eigen::Vector3d S_hat = (std::cos(beta) / e_sc_rel_target.norm())*e_sc_rel_target + (std::sin(beta) / (e_sc_rel_target.norm() * h_sc_rel_target.norm())) * h_sc_rel_target.cross(e_sc_rel_target);
+    Eigen::Vector3d T_hat = S_hat.cross(Eigen::Vector3d::UnitZ()).normalized();
+    Eigen::Vector3d R_hat = S_hat.cross(T_hat);
+
+    // Impact parameter vector
+    Eigen::Vector3d B_vec = b_impact_parameter * (S_hat.cross(h_sc_rel_target).normalized());
+
+    double b_impact_parameter_x =  B_vec.dot(T_hat);
+    double b_impact_parameter_y = B_vec.dot(R_hat);
+
+
     // Convert angular quantities to degrees
     f = f * rad_to_deg; 
     E = E * rad_to_deg; 
@@ -344,11 +388,14 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     laan = laan * rad_to_deg; 
     omega = omega * rad_to_deg; 
 
-    Eigen::VectorXd derived_state(25);
+
+    Eigen::VectorXd derived_state(32);
 
     derived_state << v, r, Energy, a, n, T, h, h_vec[0], h_vec[1], h_vec[2], 
                  e, e_vec[0], e_vec[1], e_vec[2], p, ra, rp, 
-                 b, f, E, M, gamma, i, laan, omega;
+                 b, f, E, M, gamma, i, laan, omega,
+                 V_infinity, b_impact_parameter, beta, b_impact_parameter_x, b_impact_parameter_y,
+                 r_soi, in_target_soi;
  
     return derived_state;
 
@@ -371,7 +418,9 @@ void Simulator::write_output(std::vector<double>& time,
     const std::vector<std::string> derived_headers = {
         "v", "r", "E", "a", "n", "T", "h", "h_x", "h_y", "h_z", 
         "e", "e_x", "e_y", "e_z", "p", "ra", "rp", 
-        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega"
+        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega",
+        "V_infinity", "b_impact_parameter", "beta", "b_impact_parameter_x", "b_impact_parameter_y",
+        "r_soi", "within_target_soi"
     };
     
     // Create output directory if it doesn't exist
@@ -380,7 +429,7 @@ void Simulator::write_output(std::vector<double>& time,
     std::filesystem::create_directories(output_dir.c_str());
 
 
-    // Construct full file path
+    // Construct full file path,
     std::string filepath = output_dir + "/" + filename;
     
     std::ofstream file(filepath);
@@ -494,4 +543,105 @@ std::string Simulator::unix_to_string(int unixTimeSeconds) {
         << std::setw(3) << 0;
 
     return oss.str();
+}
+
+void Simulator::load_planet_data(){
+    std::string filename = "output/planets/" + target_body + ".csv";
+    std::ifstream file(filename);
+    
+    if (!file.is_open()) {
+        std::cerr << "ERROR: Could not open " << filename << std::endl;
+        return;
+    }
+    
+    std::string line;
+    
+    while(std::getline(file, line)){
+        std::stringstream ss(line);
+        std::string cell_str;
+        std::vector<double> row;
+        
+        while (std::getline(ss, cell_str, ',')) {
+            try {
+                row.push_back(std::stod(cell_str));
+            } catch (const std::invalid_argument& e) {
+                // Skip non-numeric cells (like the date string)
+                continue;
+            }
+        }
+        
+        // Only add rows that have the expected number of values (4: JD, X, Y, Z)
+        if (row.size() == 7) {
+            planet_matrix.push_back(row);
+        }
+    }
+    file.close();
+    
+    std::cout << "Loaded " << planet_matrix.size() << " planet coordinate rows" << std::endl;
+}
+
+Eigen::Vector3d Simulator::get_target(double t, Eigen::Vector3d sc_rel_sun, bool position){
+
+    // Get x, y, z velocity
+    if (position){
+        Eigen::Vector3d r_target_rel_sun(0, 0, 0);
+        double time_percent = t / tf;
+
+        double planet_t0 = planet_matrix[1][0];
+
+        double planet_tf = planet_matrix[planet_matrix.size() - 1][0];
+
+        double planet_t = planet_t0 + ((planet_tf - planet_t0) * time_percent);
+
+        auto it = std::lower_bound(planet_matrix.begin(), planet_matrix.end(), planet_t,
+            [](const std::vector<double>& row, double val) {
+                return row[0] < val;
+            });
+
+        int n = static_cast<int>(planet_matrix.size());
+        int j = std::distance(planet_matrix.begin(), it);
+
+        j = std::max(1, std::min(j, n - 1));
+
+        double mutiplier = (planet_t - planet_matrix[j-1][0]) / (planet_matrix[j][0] - planet_matrix[j-1][0]);
+
+        r_target_rel_sun[0] = (mutiplier * (planet_matrix[j][1] - planet_matrix[j - 1][1])) + planet_matrix[j - 1][1];
+        r_target_rel_sun[1] = (mutiplier * (planet_matrix[j][2] - planet_matrix[j - 1][2])) + planet_matrix[j - 1][2];
+        r_target_rel_sun[2] = (mutiplier * (planet_matrix[j][3] - planet_matrix[j - 1][3])) + planet_matrix[j - 1][3];
+
+
+        return sc_rel_sun - r_target_rel_sun;
+    }
+
+    // Get x, y, z velocity
+    else{
+        Eigen::Vector3d v_target_rel_sun(0, 0, 0);
+        double time_percent = t / tf;
+
+        double planet_t0 = planet_matrix[1][0];
+
+        double planet_tf = planet_matrix[planet_matrix.size() - 1][0];
+
+        double planet_t = planet_t0 + ((planet_tf - planet_t0) * time_percent);
+
+        auto it = std::lower_bound(planet_matrix.begin(), planet_matrix.end(), planet_t,
+            [](const std::vector<double>& row, double val) {
+                return row[0] < val;
+            });
+
+        int n = static_cast<int>(planet_matrix.size());
+        int j = std::distance(planet_matrix.begin(), it);
+
+        j = std::max(1, std::min(j, n - 1));
+
+        double mutiplier = (planet_t - planet_matrix[j-1][0]) / (planet_matrix[j][0] - planet_matrix[j-1][0]);
+
+        v_target_rel_sun[0] = (mutiplier * (planet_matrix[j][4] - planet_matrix[j - 1][4])) + planet_matrix[j - 1][4];
+        v_target_rel_sun[1] = (mutiplier * (planet_matrix[j][5] - planet_matrix[j - 1][5])) + planet_matrix[j - 1][5];
+        v_target_rel_sun[2] = (mutiplier * (planet_matrix[j][6] - planet_matrix[j - 1][6])) + planet_matrix[j - 1][6];
+
+
+        return sc_rel_sun - v_target_rel_sun;
+    }
+  
 }

@@ -1,11 +1,11 @@
 {
-    "name": "Mars Reconnaissance Orbiter",
+    "name": "Mars Reconnaissance Orbiter_finer",
     "country": "U.S.A",
     "mass": 1000,
-    "date": 1767400865,
+    "date": 1124089200,
     "initial_condition": {
-        "ICRF_position": [5.353379652869461E+07,  2.066317662573930E+08,  1.024715390556611E+07], 
-        "ICRF_velocity": [-2.122718708708054E+01,  1.151763305500707E+01, -2.702915118971472E-01]
+        "ICRF_position": [1.203643094172370E+08, -9.231335976424207E+07,  4.193968810849227E+05], 
+        "ICRF_velocity": [2.056210231691208E+01,  2.589522401988500E+01,  1.799124408207396E+00]
     },
 
     "uncertainty": {
@@ -13,7 +13,17 @@
         "ICRF_velocity": [10,  10, 10]
     },
 
+    "burns" : [
+    {
+        "time" : 1.7881e7,
+        "delta_v_icrf": [-2, -3, 0]
+
+    }
+],
+
     "target_body": "499",
+    "target_body_mass": 6.417e23,
+    "planet_tol": 1e-3,
     "abs_tol": 1e-14,
     "rel_tol": 1e-14
 }

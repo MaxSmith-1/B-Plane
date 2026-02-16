@@ -1,13 +1,21 @@
 {
-    "name": "Looping_Spacecraft",
+    "name": "Looping Spacecraft_no_target",
     "country": "U.S.A",
     "mass": 1000,
-    "date": 1767400865,
+    "date": 1142150400,
     "initial_condition": {
-        "ICRF_position": [695700, 6957001, 6957001], 
-        "ICRF_velocity": [0, 20, 0]
+        "ICRF_position": [-7.765296454746263E+07,  2.282615838308931E+08,  6.725130422084033E+06], 
+        "ICRF_velocity": [2.237323369222645E+01, 5.692588538571203E+00, 1.811770883558710E-01]
     },
 
-    "abs_tol": 1e-12,
-    "rel_tol": 1e-12
+    "uncertainty": {
+        "ICRF_position": [100,  100,  100], 
+        "ICRF_velocity": [10,  10, 10]
+    },
+
+    "target_body": "499",
+    "target_body_mu": 4.287e10,
+    "planet_tol": 1e-5,
+    "abs_tol": 1e-10,
+    "rel_tol": 1e-10
 }

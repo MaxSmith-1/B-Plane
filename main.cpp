@@ -42,7 +42,7 @@ int main(int argc, char* argv[]){
     
     // Call simulator class
     std::cout << "Simulating spacecraft " << spacecraft_json["name"].asString() << " for " << std::to_string(tf) << "s." << std::endl;
-    Simulator sim(tf, spacecraft_json, body_json);
+    Simulator sim(tf, spacecraft_json, body_json, false);
 
     sim.simulate();
 

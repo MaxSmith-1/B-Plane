@@ -42,11 +42,13 @@ colors = plt.cm.tab10(np.linspace(0, 1, len(csv_files)))
 
 for i, csv_file in enumerate(csv_files):
     df = pd.read_csv(csv_file)
+
+    print(df.columns)
     spacecraft_data.append({
         'name': os.path.basename(csv_file).replace('.csv', ''),
-        'x': df['ECI_X'].values,
-        'y': df['ECI_Y'].values,
-        'z': df['ECI_Z'].values,
+        'x': df['ICRF_X'].values,
+        'y': df['ICRF_Y'].values,
+        'z': df['ICRF_Z'].values,
         'time': df['time'].values,
         'color': colors[i]
     })
