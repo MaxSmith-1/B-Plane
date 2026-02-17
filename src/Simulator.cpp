@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <random>
 
 #include <filesystem>
 #include <sys/stat.h>
@@ -38,6 +39,7 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
     this->central_body = central_body;
     this-> monte_carlo = monte_carlo;
 
+
     mu = G*central_body["mass"].asDouble();
 
     // Set up initial state
@@ -50,11 +52,11 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
              spacecraft["initial_condition"]["ICRF_velocity"][1].asDouble(),
              spacecraft["initial_condition"]["ICRF_velocity"][2].asDouble();
 
-    
+
+    // If a monte carlo run, perturb the state
     abs_tol = spacecraft["abs_tol"].asDouble();
     rel_tol = spacecraft["rel_tol"].asDouble();
 
-    burn_counter = 0;
     num_burns = spacecraft["burns"].size();
 
     // TODO: Set this up for spacecraft["target_body"]
@@ -157,80 +159,63 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
     }
     
 
-void Simulator::simulate(){
+void Simulator::simulate(int t_n){
+
+    // time / state / derived state variables changed to be local to this function to prevent overwriting when multithreading
+    std::vector<double> local_time;
+    std::vector<Eigen::VectorXd> local_states;
+    std::vector<Eigen::VectorXd> local_derived_states;
+    Eigen::VectorXd local_state = state;  // Copy initial state
+
+    if(monte_carlo){
+        std::cout << "Monte Carloing" << std::endl;
+        state = mc_state(state);
+        std::cout << state[0] << std::endl;
+    }
 
 
+    int local_burn_counter = 0;
 
-    // Define rk45 solver to work with Eigen library vectors
+    // Define rk45 solver
     typedef runge_kutta_dopri5<Eigen::VectorXd, double, Eigen::VectorXd, double, vector_space_algebra> error_stepper_type;
 
-    // Wrap the ode function in a lambda
     auto ode_func = [this](const Eigen::VectorXd& x, Eigen::VectorXd& dxdt, const double t) {
         this->ode_function(x, dxdt, t);
     };
 
+    // Observer lambda function that builds derived state / checks for burns every time step
+    auto observer = [&](Eigen::VectorXd &state_ref, double t) {
+        Eigen::VectorXd derived_state = build_derived_state(state_ref, t);
+        
+        local_derived_states.push_back(derived_state);
+        local_states.push_back(state_ref);
+        local_time.push_back(t);
 
-    // Integrate the ode function until tf or until collision event (detected in observe)
-    // Also record states vs. time through observe function
+        // Check for collision
+        if (std::hypot(state_ref[0], state_ref[1], state_ref[2]) < central_body["radius"].asDouble()){
+            throw std::runtime_error("Spacecraft impacted the central body surface.");
+        }
+
+        // Check for burns
+        if(t >= spacecraft["burns"][local_burn_counter]["time"].asDouble() && local_burn_counter < num_burns){
+            std::cout << "Executing burn" << std::endl;
+            state_ref[3] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][0].asDouble();
+            state_ref[4] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][1].asDouble();
+            state_ref[5] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][2].asDouble();
+            local_burn_counter++;
+        }
+    };
+
     try{
-        integrate_adaptive( make_controlled< error_stepper_type >( abs_tol , rel_tol ) , 
-                    ode_func , state , 0.0 , tf , 0.01, [this](Eigen::VectorXd &state , double t ) {
-                                this->observe( state , t );
-                            });
-                        }
-    
+        integrate_adaptive(make_controlled<error_stepper_type>(abs_tol, rel_tol), 
+                          ode_func, local_state, 0.0, tf, 0.01, observer);
+    }
     catch(const std::runtime_error& e){
-
         std::cout << "Spacecraft impacted the central body surface." << std::endl;
-
     }
 
-    // Wtite outputs to csv
-    write_output(time, states, derived_states);
-}
-
-void Simulator::observe(Eigen::VectorXd &state , double t){
-    
-    // Build derived state from current state
-    Eigen::VectorXd derived_state = build_derived_state(state, t);
-
-    // Save current time, state, and derived states into respective vectors 
-    derived_states.push_back(derived_state);
-    states.push_back( state );
-    time.push_back( t );
-
-    // Check for collision event
-    if (std::hypot(state[0], state[1], state[2]) < central_body["radius"].asDouble()){
-        throw std::runtime_error("Spacecraft impacted the central body surface.");
-    }
-
-    // Check for burn events
-    if(t >= spacecraft["burns"][burn_counter]["time"].asDouble() && burn_counter < num_burns){
-
-        std::cout << "Execuring burn" << std::endl;
-
-        // Convert burn in rtn frame to eci frame
-
-    //     if (spacecraft["burns"][burn_counter]["delta_v_icrf"].isNull()){
-
-    //         std::vector<double> delta_v_rtn_vec = {
-    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][0].asDouble(),
-    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][1].asDouble(),
-    //         spacecraft["burns"][burn_counter]["delta_v_rtn"][2].asDouble()
-    //         };
-    //         Eigen::Vector3d delta_v_icrf(Functions::rtn_to_eci_delta_v(state, delta_v_rtn_vec));
-    // }
-
-
-        // Add delta-v to current velocity state
-        state[3] += spacecraft["burns"][burn_counter]["delta_v_icrf"][0].asDouble();
-        state[4] += spacecraft["burns"][burn_counter]["delta_v_icrf"][1].asDouble();
-        state[5] += spacecraft["burns"][burn_counter]["delta_v_icrf"][2].asDouble();
-
-        burn_counter++;
-    }
-
-    //std::cout << t*100 / tf << std::endl;
+    // Write outputs
+    write_output(local_time, local_states, local_derived_states, t_n);
 }
 
 // Function that gets called on every simulation loop
@@ -378,6 +363,13 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     double b_impact_parameter_x =  B_vec.dot(T_hat);
     double b_impact_parameter_y = B_vec.dot(R_hat);
 
+    // When this quantity goes positive, spacecraft has passed through B-plane, take b_x, y at this point to be impact parameter
+    double b_impact_parameter_s_component = r_sc_rel_target.dot(S_hat);
+
+    bool passed_b_plane = b_impact_parameter_s_component > 0;
+
+    
+
 
     // Convert angular quantities to degrees
     f = f * rad_to_deg; 
@@ -389,13 +381,14 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     omega = omega * rad_to_deg; 
 
 
-    Eigen::VectorXd derived_state(32);
+    Eigen::VectorXd derived_state(34);
 
     derived_state << v, r, Energy, a, n, T, h, h_vec[0], h_vec[1], h_vec[2], 
                  e, e_vec[0], e_vec[1], e_vec[2], p, ra, rp, 
                  b, f, E, M, gamma, i, laan, omega,
                  V_infinity, b_impact_parameter, beta, b_impact_parameter_x, b_impact_parameter_y,
-                 r_soi, in_target_soi;
+                 r_soi, in_target_soi,
+                 b_impact_parameter_s_component, passed_b_plane;
  
     return derived_state;
 
@@ -403,12 +396,12 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
 
 // Function that writes states to output csv
 void Simulator::write_output(std::vector<double>& time, 
-                  std::vector<Eigen::VectorXd>& states, 
-                  std::vector<Eigen::VectorXd>& derived_states
-                  ) {
+                             std::vector<Eigen::VectorXd>& states, 
+                             std::vector<Eigen::VectorXd>& derived_states,
+                             int thread_num){
     
     // Filename
-    const std::string& filename = spacecraft["name"].asString() + "_output.csv";
+    const std::string& filename = spacecraft["name"].asString() + "_" + std::to_string(thread_num) + ".csv";
 
     // Hardcoded headers
     const std::vector<std::string> state_headers = {
@@ -420,11 +413,11 @@ void Simulator::write_output(std::vector<double>& time,
         "e", "e_x", "e_y", "e_z", "p", "ra", "rp", 
         "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega",
         "V_infinity", "b_impact_parameter", "beta", "b_impact_parameter_x", "b_impact_parameter_y",
-        "r_soi", "within_target_soi"
+        "r_soi", "within_target_soi", "b_impact_parameter_s_component", "passed_b_plane"
     };
     
     // Create output directory if it doesn't exist
-    std::string output_dir = "output";
+    std::string output_dir = "output/trials";
 
     std::filesystem::create_directories(output_dir.c_str());
 
@@ -469,7 +462,7 @@ void Simulator::write_output(std::vector<double>& time,
     file << "time";
     
     // State headers
-    for (int i = 0; i < num_states; i++) {
+    for (unsigned int i = 0; i < num_states; i++) {
         file << ",";
         if (i < state_headers.size()) {
             file << state_headers[i];
@@ -479,7 +472,7 @@ void Simulator::write_output(std::vector<double>& time,
     }
     
     // Derived state headers
-    for (int i = 0; i < num_derived; i++) {
+    for (unsigned int i = 0; i < num_derived; i++) {
         file << ",";
         if (i < derived_headers.size()) {
             file << derived_headers[i];
@@ -644,4 +637,29 @@ Eigen::Vector3d Simulator::get_target(double t, Eigen::Vector3d sc_rel_sun, bool
         return sc_rel_sun - v_target_rel_sun;
     }
   
+}
+
+Eigen::VectorXd Simulator::mc_state(Eigen::VectorXd state){
+
+
+    // Initialize random class
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    state_std.resize(6);
+    state_std << spacecraft["std"]["ICRF_position"][0].asDouble(),
+            spacecraft["std"]["ICRF_position"][1].asDouble(),
+            spacecraft["std"]["ICRF_position"][2].asDouble(),
+            spacecraft["std"]["ICRF_velocity"][0].asDouble(),
+            spacecraft["std"]["ICRF_velocity"][1].asDouble(),
+            spacecraft["std"]["ICRF_velocity"][2].asDouble();
+    
+    // Perturb initial state into gaussian distribution
+    for(unsigned int i = 0; i < state.size(); i++){
+
+        std::normal_distribution<double> dist(state[i], state_std[i]);
+        state[i] = dist(gen);
+    }
+    return state;
+
 }

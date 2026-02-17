@@ -5,15 +5,33 @@ from pathlib import Path
 import math
 
 
-output_directory = Path("output")
-names = ["MRO", "MRO"]
+output_directory = Path("output/trials")
+names = []
+
+# Sun sphere
+r_sun = 695700 
+points = np.linspace(0, 2*np.pi, 1000)
+x_sun = r_sun*np.cos(points)
+y_sun = r_sun*np.sin(points)
+
+
+plt.style.use('dark_background')
+
+
+for i in range(1, 4):
+    plt.figure(i)
+    plt.plot(x_sun, y_sun, color='yellow')
+
+
+print(output_directory.iterdir())
 
 for i, file in enumerate(output_directory.iterdir()):
 
     print(type(file))
     
     try:
-        # names.append(str(file).split("\\")[1].split("_output.csv")[0])
+        names.append(str(file).split("\\")[2].split("_output.csv")[0])
+        print(names)
         sim_df = pd.read_csv(file)
     except(PermissionError):
         continue 
@@ -21,22 +39,12 @@ for i, file in enumerate(output_directory.iterdir()):
     
 
     print(sim_df)
+    
 
-    # Sun sphere
-    r_sun = 695700 
-    points = np.linspace(0, 2*np.pi, 1000)
-    x_sun = r_sun*np.cos(points)
-    y_sun = r_sun*np.sin(points)
-
-    plt.style.use('dark_background')
 
     # ICRF X-Y
     plt.figure(1)
-    plt.title("ICRF X vs. Y plane")
-
-    if i == 0:
-        plt.plot(x_sun, y_sun, color='yellow')
-    
+    plt.title("ICRF X vs. Y plane")    
     plt.plot(sim_df.ICRF_X, sim_df.ICRF_Y)
     plt.xlabel("X [km]")
     plt.ylabel("Y [km]")
@@ -47,10 +55,6 @@ for i, file in enumerate(output_directory.iterdir()):
     # ICRF X-Z
     plt.figure(2)
     plt.title("ICRF X vs. Z plane")
-
-    if i == 0:
-        plt.plot(x_sun, y_sun, color='yellow')
-    
     plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z)
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
@@ -59,21 +63,12 @@ for i, file in enumerate(output_directory.iterdir()):
 
     # ICRF y-Z
     plt.figure(3)
-    plt.title("ICRF Y vs. Z plane")
-
-    if i == 0:
-        plt.plot(x_sun, y_sun, color='yellow')
-    
+    plt.title("ICRF Y vs. Z plane")    
     plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z)
     plt.xlabel("y [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
     plt.legend(["Sun"] + names)
-
-    print(names)
-    
-    if i == 0:
-        names.pop(0)
     
 
     # Classical Orbital Elements vs. time 
@@ -144,15 +139,11 @@ for i, file in enumerate(output_directory.iterdir()):
 
     plt.figure(13)
     plt.title("Vz vs. time")
-    plt.plot(sim_df.time, sim_df.v_mag)
+    plt.plot(sim_df.time, sim_df.Vz)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
     plt.legend(names)
 
-
-
-
-    # Velocity Magnitude vs. time
 
 
 ref_df = pd.read_csv("python/ref_traj.csv")

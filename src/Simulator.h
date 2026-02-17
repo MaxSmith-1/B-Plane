@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ctime>
+#include <mutex>
 
 
 
@@ -20,7 +21,7 @@ class Simulator
     Simulator(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo);
     
     // Initialize simulation loop function
-    void simulate();
+    void simulate(int t_n);
 
     private:
 
@@ -29,10 +30,11 @@ class Simulator
     Json::Value spacecraft;
     Json::Value central_body;
     bool monte_carlo;
+    // int thread_num = 0;
 
     double abs_tol;
     double rel_tol;
-    int burn_counter;
+    // int burn_counter;
     int num_burns;
 
     // Target body variables
@@ -49,14 +51,17 @@ class Simulator
  
     // Initialize state vectors
     Eigen::VectorXd state;
+    Eigen::VectorXd state_std;
+    
     //Eigen::VectorXd derived_state;
 
     // Initialize time column
-    std::vector<double> time;
+    // std::vector<double> time;
+    // std::mutex data_mutex;
 
     // Initialize list for state vector storage
-    std::vector<Eigen::VectorXd> states;
-    std::vector<Eigen::VectorXd> derived_states;
+    // std::vector<Eigen::VectorXd> states;
+    // std::vector<Eigen::VectorXd> derived_states;
 
     // Function that gets called on every simulation loop
     void ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, const double t);
@@ -64,10 +69,8 @@ class Simulator
     // Function that calculates derived state values on each simulation loop
     Eigen::VectorXd build_derived_state(Eigen::VectorXd state, double t);
 
-    void observe(Eigen::VectorXd &state , double t );
-
     // Function that writes states to output csv
-    void write_output(std::vector<double>& time, std::vector<Eigen::VectorXd>& states, std::vector<Eigen::VectorXd>& derived_states);
+    void write_output(std::vector<double>& time, std::vector<Eigen::VectorXd>& states, std::vector<Eigen::VectorXd>& derived_states, int thread_num);
 
     // Function that writes callback from NASA Horizons API
     static size_t write_callback(void* contents, size_t size, size_t nmemb, std::string* userp);
@@ -81,6 +84,7 @@ class Simulator
     // Function to get target coordinates
     Eigen::Vector3d get_target(double t, Eigen::Vector3d r_sc_rel_sun, bool position);
     
-    // Function to generate randomized state for monte carlo run
+    // Function to generate gaussian state for monte carlo run
+    Eigen::VectorXd mc_state(Eigen::VectorXd state);
 
 };

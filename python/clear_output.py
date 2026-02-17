@@ -2,7 +2,7 @@ import shutil
 import os
 
 def clear_output():
-    directory = 'output'
+    directory = 'output/trials'
 
     # Remove directory and all contents
     if os.path.exists(directory):
