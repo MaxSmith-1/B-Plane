@@ -4,9 +4,28 @@
     "mass": 1000,
     "date": 1767400865,
     "initial_condition": {
-        "ICRF_position": [7000, 1, 1], 
-        "ICRF_velocity": [0, 6.31, 0]
+        "ICRF_position": [1.203643094172370E+08, -9.231335976424207E+07,  4.193968810849227E+05], 
+        "ICRF_velocity": [2.056210231691208E+01,  2.589522401988500E+01,  1.799124408207396E+00]
     },
+
+    "std": {
+        "ICRF_position": [1,  1,  1], 
+        "ICRF_velocity": [0.001,  0.001, 0.001]
+    },
+
+    "target_body": "499",
+    "target_body_mass": 6.4171e23,
+    "planet_tol": 1e-4,
+
+        "burns" : [
+        {
+            "time" : 500,
+            "delta_v_icrf": [0, 4, 0]
+
+        }
+    ],
+
+
 
     "abs_tol": 1e-12,
     "rel_tol": 1e-12
