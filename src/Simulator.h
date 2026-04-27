@@ -10,7 +10,7 @@
 #include <ctime>
 #include <mutex>
 
-
+#pragma once 
 
 class Simulator
 {
@@ -18,16 +18,18 @@ class Simulator
     public:
 
     // Initialze Constructor
-    Simulator(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo);
+    Simulator(double tf, Json::Value& spacecraft, Json::Value central_body, bool monte_carlo);
     
     // Initialize simulation loop function
     void simulate(int t_n);
+
+    void set_spacecraft(Json::Value spacecraft);
 
     private:
 
     // Input variables
     double tf;
-    Json::Value spacecraft;
+    Json::Value& spacecraft;
     Json::Value central_body;
     bool monte_carlo;
     // int thread_num = 0;
@@ -45,7 +47,7 @@ class Simulator
     std::vector<std::vector<double>> planet_matrix;
 
     // Gravitational Constant
-    double G = 6.674e-20;
+    double G = 6.6743e-20;
     double mu;
 
  

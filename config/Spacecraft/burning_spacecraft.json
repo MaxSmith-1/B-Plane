@@ -17,7 +17,7 @@
     "target_body_mass": 6.4171e23,
     "planet_tol": 1e-4,
 
-        "burns" : [
+    "burns" : [
         {
             "time" : 500,
             "delta_v_icrf": [0, 4, 0]

@@ -11,6 +11,6 @@ Steps for Compiling on WSL:
 
 3. Cd into root directory and to run ```./executable/Orbit_Simulator```
 
-Demo Run: ```./executable/Orbit_Simulator 10110.447864 config/Spacecraft/demo_spacecraft.json config/Bodies/earth.json```
+Demo Run: ```./executable/B_Plane 18000000 config/Spacecraft/MRO.json config/Bodies/sun.json```
 
-Demo Run: Orbit_Simulator.exe 20110.447864 config/Spacecraft/demo_spacecraft.json config/Bodies/earth.json 
+

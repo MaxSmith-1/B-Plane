@@ -31,7 +31,9 @@
 using namespace boost::numeric::odeint;
 
 
-Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo){
+Simulator::Simulator(double tf, Json::Value& spacecraft, Json::Value central_body, bool monte_carlo)
+: spacecraft(spacecraft)
+{
 
 
     this->tf = tf;
@@ -57,7 +59,6 @@ Simulator::Simulator(double tf, Json::Value spacecraft, Json::Value central_body
     abs_tol = spacecraft["abs_tol"].asDouble();
     rel_tol = spacecraft["rel_tol"].asDouble();
 
-    num_burns = spacecraft["burns"].size();
 
     // TODO: Set this up for spacecraft["target_body"]
 
@@ -167,6 +168,8 @@ void Simulator::simulate(int t_n){
     std::vector<Eigen::VectorXd> local_derived_states;
     Eigen::VectorXd local_state = state;  // Copy initial state
 
+    num_burns = spacecraft["burns"].size();
+
     if(monte_carlo){
         std::cout << "Monte Carloing" << std::endl;
         state = mc_state(state);
@@ -175,6 +178,9 @@ void Simulator::simulate(int t_n){
 
 
     int local_burn_counter = 0;
+
+    // std::cout << "Simulator sees burns: " << spacecraft["burns"] << std::endl;
+
 
     // Define rk45 solver
     typedef runge_kutta_dopri5<Eigen::VectorXd, double, Eigen::VectorXd, double, vector_space_algebra> error_stepper_type;
@@ -202,6 +208,8 @@ void Simulator::simulate(int t_n){
             state_ref[3] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][0].asDouble();
             state_ref[4] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][1].asDouble();
             state_ref[5] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][2].asDouble();
+            
+            // Because optimizer just uses one class, dont increment local_burn_counter 
             local_burn_counter++;
         }
     };
@@ -662,4 +670,10 @@ Eigen::VectorXd Simulator::mc_state(Eigen::VectorXd state){
     }
     return state;
 
+}
+
+
+
+void Simulator::set_spacecraft(Json::Value spacecraft) {
+    this->spacecraft = spacecraft;
 }

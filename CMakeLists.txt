@@ -24,6 +24,8 @@ find_package(CURL REQUIRED)
 add_executable(B_Plane 
     main.cpp
     src/Simulator.cpp
+    src/Optimizers/ShootingMethod.cpp
+    src/Optimizers/GradientDescent.cpp
 )
 
 # Link libraries - Use lowercase target names for Conan packages

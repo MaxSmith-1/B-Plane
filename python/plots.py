@@ -21,30 +21,27 @@ plt.style.use('dark_background')
 for i in range(1, 4):
     plt.figure(i)
     plt.plot(x_sun, y_sun, color='yellow')
+    # plt.legend(["Sun"])
 
 
-print(output_directory.iterdir())
+
 
 for i, file in enumerate(output_directory.iterdir()):
 
-    print(type(file))
+
     
     try:
         names.append(str(file).split("\\")[2].split("_output.csv")[0])
-        print(names)
+
         sim_df = pd.read_csv(file)
     except(PermissionError):
         continue 
 
-    
-
-    print(sim_df)
-    
 
 
-    # ICRF X-Y
+    # J2000 X-Y
     plt.figure(1)
-    plt.title("ICRF X vs. Y plane")    
+    plt.title("J2000 X vs. Y plane")    
     plt.plot(sim_df.ICRF_X, sim_df.ICRF_Y)
     plt.xlabel("X [km]")
     plt.ylabel("Y [km]")
@@ -52,19 +49,19 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.legend("Earth")
     plt.legend(["Sun"] + names)
 
-    # ICRF X-Z
+    # J2000 X-Z
     plt.figure(2)
-    plt.title("ICRF X vs. Z plane")
-    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z)
+    plt.title("J2000 X vs. Z plane")
+    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z, color="#00BFFF")
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
     plt.legend(["Sun"] + names)
 
-    # ICRF y-Z
+    # J2000 y-Z
     plt.figure(3)
-    plt.title("ICRF Y vs. Z plane")    
-    plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z)
+    plt.title("J2000 Y vs. Z plane")    
+    plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z, color="#00BFFF")
     plt.xlabel("y [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
@@ -149,47 +146,45 @@ for i, file in enumerate(output_directory.iterdir()):
 ref_df = pd.read_csv("python/ref_traj.csv")
 
 target_df = pd.read_csv("output/planets/499.csv")
-print(target_df.index)
+
 target_df.columns = ["empty", "date", "X", "Y", "Z", "Vx", "Vy", "Vz", "emprt"]
 
 
-print(target_df)
-
 plt.figure(1)
-plt.plot(ref_df.X, ref_df.Y)
+# plt.plot(ref_df.X, ref_df.Y, color="#00E676")
 plt.scatter(target_df.X, target_df.Y, c='red')
-plt.legend(["Sun"] + names + ["reference trajectory", "Mars"])
+plt.legend(["Sun"] + names + ["Mars"])
 ref_df["v_mag"] = np.sqrt(ref_df["VX"] ** 2 + ref_df["VY"] ** 2 + ref_df["VZ"] ** 2)
 
 plt.figure(2)
-plt.plot(ref_df.X, ref_df.Z)
+# plt.plot(ref_df.X, ref_df.Z, color="#00E676")
 plt.scatter(target_df.X, target_df.Z, c='red')
-plt.legend(["Sun"] + names + ["reference trajectory", "Mars"])
+plt.legend(["Sun"] + names + ["Mars"])
 
 plt.figure(3)
-plt.plot(ref_df.Y, ref_df.Z)
+# plt.plot(ref_df.Y, ref_df.Z, color="#00E676")
 plt.scatter(target_df.Y, target_df.Z, c='red')
-plt.legend(["Sun"] + names + ["reference trajectory", "Mars"])
+plt.legend(["Sun"] + names + ["Mars"])
 
 
 
 
-plt.figure(10)
-plt.plot(ref_df.time, ref_df.v_mag)
-plt.legend(names + ["reference trajectory"])
+# plt.figure(10)
+# plt.plot(ref_df.time, ref_df.v_mag)
+# plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
-plt.figure(11)
-plt.plot(ref_df.time, ref_df.VX)
-plt.legend(names + ["reference trajectory"])
+# plt.figure(11)
+# plt.plot(ref_df.time, ref_df.VX)
+# plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
-plt.figure(12)
-plt.plot(ref_df.time, ref_df.VY)
-plt.legend(names + ["reference trajectory"])
+# plt.figure(12)
+# plt.plot(ref_df.time, ref_df.VY)
+# plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
 
-plt.figure(13)
-plt.plot(ref_df.time, ref_df.VZ)
-plt.legend(names + ["reference trajectory"])
+# plt.figure(13)
+# plt.plot(ref_df.time, ref_df.VZ)
+# plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
 
 

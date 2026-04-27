@@ -42,13 +42,12 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.ylabel("Impact Parameter [km]")
 
 
-    
-    b_x_y = list(sim_df[sim_df["passed_b_plane"] == True][["b_impact_parameter_x", "b_impact_parameter_y"]].iloc[0])
+    try:
+        b_x_y = list(sim_df[sim_df["passed_b_plane"] == True][["b_impact_parameter_x", "b_impact_parameter_y"]].iloc[0])
 
-    bs_list.append(b_x_y)
-
-    
-
+        bs_list.append(b_x_y)
+    except: 
+        continue
 
 
 bs = pd.DataFrame(bs_list, columns=["b_impact_parameter_x", "b_impact_parameter_y"])
@@ -71,7 +70,7 @@ plt.figure(5)
 
 print(bs)
 plt.scatter(bs["b_impact_parameter_x"], bs["b_impact_parameter_y"])
-plt.title("Impact Parameter")
+plt.title("Impact Parameters on B-Plane")
 plt.xlabel("B_X [km]")
 plt.ylabel("B_Y [km]")
 plt.plot(mars_x, mars_y, 'red')

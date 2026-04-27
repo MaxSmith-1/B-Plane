@@ -6,6 +6,8 @@
 #include <thread>
 
 #include <Simulator.h>
+#include <Optimizers/ShootingMethod.h>
+
 
 
 int main(int argc, char* argv[]){
@@ -29,11 +31,6 @@ int main(int argc, char* argv[]){
 
     }
 
-    // argv[6,7] = Target b-plane x,y coordinates
-    // TODO: Optimizer class that calls simulator 
-
-
-    
     Json::Value spacecraft_json, body_json;
     
     // Load data from json files
@@ -55,13 +52,12 @@ int main(int argc, char* argv[]){
     // Call simulator class
 
     bool mc = mc_trials > 0;
-    std::cout << "Simulating spacecraft " << spacecraft_json["name"].asString() << " for " << std::to_string(tf) << "s." << std::endl;
+    std::cout << "Optimizing b-plane coordinates for spacecraft " << spacecraft_json["name"].asString() << " for " << std::to_string(tf) << "s." << std::endl;
     Simulator sim(tf, spacecraft_json, body_json, mc);
-
 
     // Monte Carlo run with multithreading
     if(mc){
-
+        std::cout << "mcing" << std::endl;
         for(int i = 0; i < mc_trials; i+=num_threads){
 
             std::vector<std::thread> threads;
@@ -85,7 +81,21 @@ int main(int argc, char* argv[]){
 
     // One off run
     else{
-        sim.simulate(0);
+
+
+        // TODO: Get t_burn from json or input
+        std::cout << "Optimizing" << std::endl;
+
+        double t_burn = spacecraft_json["t_burn"].asDouble();
+
+        ShootingMethod sm(tf, t_burn, spacecraft_json, body_json);
+
+        Eigen::Vector3d velocity = sm.optimize();
+
+        std::cout << "Optimal ICRF burn for desired b-plane coordinates at time " << t_burn << " s from start:" << std::endl;
+        std::cout << "Vx:" << velocity[0] << std::endl;
+        std::cout << "Vy:" << velocity[1] << std::endl;
+        std::cout << "Vz:" << velocity[2] << std::endl;
         
     }
     // Call this function in python and generate some basic plots

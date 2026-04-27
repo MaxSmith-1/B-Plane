@@ -14,15 +14,19 @@
     },
 
     "target_body": "499",
+    "target_body_name": "Mars",
     "target_body_mass": 6.4171e23,
     "planet_tol": 1e-4,
 
     "time_to_burn": 86400,
     "target_b_plane_coordinates": {
-        "x": 1000,
-        "y":1000
+        "x": 10000,
+        "y":10000
     },
     
     "abs_tol": 1e-14,
-    "rel_tol": 1e-14
+    "rel_tol": 1e-14,
+    "eps": 0.001,
+    "b-threshold": 100,
+    "t_burn": 10000000
 }
