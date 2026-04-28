@@ -50,6 +50,12 @@ class Simulator
     double G = 6.6743e-20;
     double mu;
 
+    double P0 = 1367;
+    double c = 2.998e8;           
+    double R0 = 1.496e11;
+
+    int local_burn_counter;
+
  
     // Initialize state vectors
     Eigen::VectorXd state;

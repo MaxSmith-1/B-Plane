@@ -46,8 +46,8 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("X [km]")
     plt.ylabel("Y [km]")
     plt.axis('square')
-    plt.legend("Earth")
-    plt.legend(["Sun"] + names)
+    # plt.legend("Earth")
+    # plt.legend(["Sun"] + names)
 
     # J2000 X-Z
     plt.figure(2)
@@ -56,7 +56,7 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
-    plt.legend(["Sun"] + names)
+    # plt.legend(["Sun"] + names)
 
     # J2000 y-Z
     plt.figure(3)
@@ -65,7 +65,7 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("y [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
-    plt.legend(["Sun"] + names)
+    # plt.legend(["Sun"] + names)
     
 
     # Classical Orbital Elements vs. time 
@@ -74,42 +74,42 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.plot(sim_df.time, sim_df.a)
     plt.xlabel("time [s]")
     plt.ylabel("a [km]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(5)
     plt.title("Eccentricity vs. time")
     plt.plot(sim_df.time, sim_df.e)
     plt.xlabel("time [s]")
     plt.ylabel("e [-]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(6)
     plt.title("Inclination vs. time")
     plt.plot(sim_df.time, sim_df.i)
     plt.xlabel("time [s]")
     plt.ylabel("i [rad]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(7)
     plt.title("Longitude of Ascending Node vs. time")
     plt.plot(sim_df.time, sim_df.laan)
     plt.xlabel("time [s]")
     plt.ylabel("Ω [rad]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(8)
     plt.title("Argument of Periapsis vs. time")
     plt.plot(sim_df.time, sim_df.gamma)
     plt.xlabel("time [s]")
     plt.ylabel("ω [rad]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(9)
     plt.title("True anomaly vs. time")
     plt.plot(sim_df.time, sim_df.f)
     plt.xlabel("time [s]")
     plt.ylabel("f [rad]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(10)
 
@@ -118,28 +118,28 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.plot(sim_df.time, sim_df.v_mag)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(11)
     plt.title("Vx vs. time")
     plt.plot(sim_df.time, sim_df.Vx)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(12)
     plt.title("Vy vs. time")
     plt.plot(sim_df.time, sim_df.Vy)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
-    plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(13)
     plt.title("Vz vs. time")
     plt.plot(sim_df.time, sim_df.Vz)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
-    plt.legend(names)
+    # plt.legend(names)
 
 
 
@@ -152,19 +152,19 @@ target_df.columns = ["empty", "date", "X", "Y", "Z", "Vx", "Vy", "Vz", "emprt"]
 
 plt.figure(1)
 # plt.plot(ref_df.X, ref_df.Y, color="#00E676")
-plt.scatter(target_df.X, target_df.Y, c='red')
-plt.legend(["Sun"] + names + ["Mars"])
+plt.scatter(target_df.X, target_df.Y, c='orange')
+# plt.legend(["Sun"] + names + ["Mars"])
 ref_df["v_mag"] = np.sqrt(ref_df["VX"] ** 2 + ref_df["VY"] ** 2 + ref_df["VZ"] ** 2)
 
 plt.figure(2)
 # plt.plot(ref_df.X, ref_df.Z, color="#00E676")
-plt.scatter(target_df.X, target_df.Z, c='red')
-plt.legend(["Sun"] + names + ["Mars"])
+plt.scatter(target_df.X, target_df.Z, c='orange')
+# plt.legend(["Sun"] + names + ["Mars"])
 
 plt.figure(3)
 # plt.plot(ref_df.Y, ref_df.Z, color="#00E676")
-plt.scatter(target_df.Y, target_df.Z, c='red')
-plt.legend(["Sun"] + names + ["Mars"])
+plt.scatter(target_df.Y, target_df.Z, c='orange')
+# plt.legend(["Sun"] + names + ["Mars"])
 
 
 

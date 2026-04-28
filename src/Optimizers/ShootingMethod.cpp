@@ -24,15 +24,78 @@ Eigen::Vector3d ShootingMethod::optimize(){
     double residual = std::numeric_limits<double>::infinity();
     double threshold = spacecraft["b-threshold"].asDouble();
 
+    double bx_target = spacecraft["target_b_plane_coordinates"]["x"].asDouble();
+    double by_target = spacecraft["target_b_plane_coordinates"]["y"].asDouble();
+
     Eigen::Vector3d velocity(0,0,0);
 
     double count = 0;
     
-    
-    while(residual > threshold){
+    // If no t_burn was specified, optimize for burn time by sweeping Jacobean matricies
+    // Get burn time resulution down to the hour
+
+    std::cout << "Optimizing burn time" << std::endl;
+    double t_burn_final = 0;     
+    if (t_burn == 0.0){
+
+        double t_max = tf;
+
+        // Must be at least one week from planned burn
+        double t_min = 86400 * 7;
         
-        double bx_target = spacecraft["target_b_plane_coordinates"]["x"].asDouble();
-        double by_target = spacecraft["target_b_plane_coordinates"]["y"].asDouble();
+        
+        double counter = 0;
+        
+        while (t_max - t_min > 3600){
+            std::cout << "Time trial " << counter << std::endl;
+            std::cout << t_max - t_min << counter << std::endl;
+
+
+            double max_singular_value = -1*std::numeric_limits<double>::infinity();
+            unsigned int best_i = 0;
+
+            for(unsigned int i=0; i < 10; i++){
+
+                // Change burn time
+                t_burn = t_min + i * ((t_max - t_min) / 10);
+
+                // Add 0 burn to plan
+                add_burn(velocity);
+
+                // Compute Jacobean at this time
+                Eigen::Matrix<double, 2, 3> J = get_Jacobean(velocity);
+
+                // Get max singular value from J
+                Eigen::JacobiSVD<Eigen::Matrix<double, 2, 3>> svd(J, Eigen::ComputeFullU | Eigen::ComputeFullV);
+                double singular_value = svd.singularValues()(0);
+
+                // Store the max singular value / time bounds
+                if (singular_value > max_singular_value){
+                    max_singular_value = singular_value;
+                    t_burn_final = t_burn; 
+                    best_i = i;
+                    
+                }
+
+            }
+
+            double current_t_max = t_max;
+            double current_t_min = t_min; 
+            
+            // Shrink the time range and repeat
+            t_max = best_i < 9  ? current_t_min + (best_i+1) * ((current_t_max - current_t_min) / 10) : current_t_min + best_i * ((current_t_max - current_t_min) / 10);
+            t_min = best_i > 0 ? current_t_min + (best_i-1) * ((current_t_max - current_t_min) / 10) : current_t_min + best_i * ((current_t_max - current_t_min) / 10);
+
+        }
+
+        t_burn = t_burn_final;
+
+    }
+
+    Eigen::Vector3d dv(0,0,0);  
+
+
+    while(residual > threshold){
 
         // Clear burn plan / add guess burn
         std::cout << "Adding new burn: " << std::endl;
@@ -41,6 +104,27 @@ Eigen::Vector3d ShootingMethod::optimize(){
         // Get b-plane coordinates
         std::cout << "Running nominal sim: " << std::endl;
         std::array<double, 2> b_coords = get_b_coordinates(tf, spacecraft, central_body, false);
+
+        int backtrack_count = 0;
+        bool cant_pass = false;
+        while(std::isnan(b_coords[0]) || (b_coords[0] == 0 && b_coords[1] == 0)){
+            std::cout << "WARNING: B-plane not crossed, backtracking" << std::endl;
+            if(backtrack_count++ > 10) { 
+                std::cerr << "ERROR: Could not find B-plane crossing" << std::endl;
+                cant_pass = true;
+                break; 
+            }
+            velocity = velocity - dv * 0.5;
+            dv = dv * 0.5;  // shrink dv so next backtrack is smaller
+            add_burn(velocity);
+            b_coords = get_b_coordinates(tf, spacecraft, central_body, false);
+            
+        }
+
+        if(cant_pass){
+            Eigen::Vector3d return_val(0,0,0);
+            return return_val;
+        }
 
         double bx_guess = b_coords[0];
         double by_guess = b_coords[1];
@@ -70,7 +154,7 @@ Eigen::Vector3d ShootingMethod::optimize(){
         // Compute next guess / iterate
         Eigen::Matrix<double, 3, 3> JtJ = J.transpose() * J;
         std::cout << "JtJ determinant: " << JtJ.determinant() << std::endl;
-        Eigen::Vector3d dv = -J.bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV).solve(F);
+        dv = -J.bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV).solve(F);
         
         // Velocity is in ICRF coordinate frame
         // TODO: rotate to local RTN frame
@@ -96,8 +180,6 @@ Eigen::Vector3d ShootingMethod::optimize(){
     // Run monte carlo trial with new velocity when done solving
 
     add_burn(velocity);
-
-
     Simulator sim_mc(tf, spacecraft, central_body, true);
 
     std::cout << "mcing" << std::endl;
@@ -122,13 +204,17 @@ Eigen::Vector3d ShootingMethod::optimize(){
     
     }
 
-    return velocity;
+    std::cout << "New suggested burn (ICRF XYZ): " << std::endl;
+    std::cout << velocity << std::endl;
+
+    std::cout << "Optimal RTN burn for desired b-plane coordinates at time " << t_burn << " s from start:" << std::endl;
+
+    return get_rtn_burn(velocity, tf, spacecraft, central_body, false);
 
 }
 
 
 std::array<double, 2> ShootingMethod::get_b_coordinates(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo){
-
 
     // Run sim
     sim.simulate(0);
@@ -152,7 +238,6 @@ std::array<double, 2> ShootingMethod::get_b_coordinates(double tf, Json::Value s
     while (std::getline(ss, col, ',')) {
         headers[col] = i++;
     }
-
 
     int bx_col = headers["b_impact_parameter_x"];
     int by_col = headers["b_impact_parameter_y"];
@@ -199,11 +284,64 @@ std::array<double, 2> ShootingMethod::get_b_coordinates(double tf, Json::Value s
     }
 
     else{
-        return {0,0};
+            return {0,0};
     }
 
    
     }
+
+Eigen::Vector3d ShootingMethod::get_rtn_burn(Eigen::Vector3d velocity, double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo){
+
+
+    // Run sim
+    sim.simulate(0);
+
+    // Pull impact_parameter_x and impact_parameter_y from output csv
+    
+    std::string spacecraft_name = spacecraft["name"].asString(); 
+    std::ifstream file("output/trials/" + spacecraft_name + "_0.csv");
+    
+    // Get impact_parameter_x, impact_parameter_y, passed_b_plane columns
+
+    std::map<std::string, int> headers;
+    std::string line;
+    std::getline(file, line);
+
+    std::stringstream ss(line);
+    std::string col;
+
+    int i = 0;
+
+    while (std::getline(ss, col, ',')) {
+        headers[col] = i++;
+    }
+
+    int burn_col = headers["local_burn_counter"]; 
+    Eigen::VectorXd burn_state(6);
+
+    while (std::getline(file, line)) {
+    std::stringstream ss(line);
+    std::string val;
+    int col = 0;
+
+        while (std::getline(ss, val, ',')) {
+
+            if (col < 6){
+                burn_state[col] = std::stod(val);
+            }
+            if (col == burn_col){
+                if(std::stod(val) == 1){
+                    break;
+                }
+            }
+            col++;
+        }
+    }
+
+
+    return Functions::icrf_to_rtn_delta_v(burn_state, velocity);
+}
+
 
 
 Eigen::Matrix<double, 2, 3> ShootingMethod::get_Jacobean(Eigen::Vector3d velocity){
@@ -259,6 +397,8 @@ void ShootingMethod::add_burn(Eigen::Vector3d velocity){
     Json::Value burn;
     burn["time"] = t_burn;
 
+
+    std::cout << "t_burn: " << t_burn << std::endl;
     // Create the delta_v_icrf array
     Json::Value delta_v(Json::arrayValue);
     delta_v.append(velocity[0]);

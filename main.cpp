@@ -86,16 +86,15 @@ int main(int argc, char* argv[]){
         // TODO: Get t_burn from json or input
         std::cout << "Optimizing" << std::endl;
 
-        double t_burn = spacecraft_json["t_burn"].asDouble();
+        double t_burn = spacecraft_json["t_burn"].isNull() ? 0.0 : spacecraft_json["t_burn"].asDouble();
 
         ShootingMethod sm(tf, t_burn, spacecraft_json, body_json);
 
         Eigen::Vector3d velocity = sm.optimize();
 
-        std::cout << "Optimal ICRF burn for desired b-plane coordinates at time " << t_burn << " s from start:" << std::endl;
-        std::cout << "Vx:" << velocity[0] << std::endl;
-        std::cout << "Vy:" << velocity[1] << std::endl;
-        std::cout << "Vz:" << velocity[2] << std::endl;
+        std::cout << "Vr:" << velocity[0] << std::endl;
+        std::cout << "Vt:" << velocity[1] << std::endl;
+        std::cout << "Vn:" << velocity[2] << std::endl;
         
     }
     // Call this function in python and generate some basic plots
