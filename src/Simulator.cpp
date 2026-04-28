@@ -59,9 +59,6 @@ Simulator::Simulator(double tf, Json::Value& spacecraft, Json::Value central_bod
     abs_tol = spacecraft["abs_tol"].asDouble();
     rel_tol = spacecraft["rel_tol"].asDouble();
 
-    local_burn_counter = 0;
-
-
     // TODO: Set this up for spacecraft["target_body"]
 
     // Set up settings
@@ -179,7 +176,7 @@ void Simulator::simulate(int t_n){
     }
 
 
-    local_burn_counter = 0;
+    int local_burn_counter = 0;
 
     // std::cout << "Simulator sees burns: " << spacecraft["burns"] << std::endl;
 
@@ -193,7 +190,7 @@ void Simulator::simulate(int t_n){
 
     // Observer lambda function that builds derived state / checks for burns every time step
     auto observer = [&, num_burns](Eigen::VectorXd &state_ref, double t) {
-        Eigen::VectorXd derived_state = build_derived_state(state_ref, t);
+        Eigen::VectorXd derived_state = build_derived_state(state_ref, t, local_burn_counter);
         
         local_derived_states.push_back(derived_state);
         local_states.push_back(state_ref);
@@ -205,7 +202,7 @@ void Simulator::simulate(int t_n){
         // }
 
         // Check for burns
-        if(t >= spacecraft["burns"][local_burn_counter]["time"].asDouble() && local_burn_counter < num_burns){
+        if(local_burn_counter < num_burns && t >= spacecraft["burns"][local_burn_counter]["time"].asDouble()){
             std::cout << "Executing burn" << std::endl;
             state_ref[3] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][0].asDouble();
             state_ref[4] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][1].asDouble();
@@ -267,7 +264,7 @@ void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, co
 }
 
 // Function that calculates derived state values on each simulation loop
-Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
+Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t, int burn_counter){
 
     double rad_to_deg = 180 / M_PI;
     // DERIVED STATES TO CALCULATE
@@ -398,7 +395,7 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
 
     derived_state << v, r, Energy, a, n, T, h, h_vec[0], h_vec[1], h_vec[2], 
                  e, e_vec[0], e_vec[1], e_vec[2], p, ra, rp, 
-                 b, f, E, M, gamma, i, laan, omega, local_burn_counter,
+                 b, f, E, M, gamma, i, laan, omega, burn_counter,
                  V_infinity, b_impact_parameter, beta, b_impact_parameter_x, b_impact_parameter_y,
                  r_soi, in_target_soi,
                  b_impact_parameter_s_component, passed_b_plane;
@@ -424,7 +421,7 @@ void Simulator::write_output(std::vector<double>& time,
     const std::vector<std::string> derived_headers = {
         "v", "r", "E", "a", "n", "T", "h", "h_x", "h_y", "h_z", 
         "e", "e_x", "e_y", "e_z", "p", "ra", "rp", 
-        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega", "local_burn_counter",
+        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega", "burn_counter",
         "V_infinity", "b_impact_parameter", "beta", "b_impact_parameter_x", "b_impact_parameter_y",
         "r_soi", "within_target_soi", "b_impact_parameter_s_component", "passed_b_plane"
     };

@@ -36,8 +36,6 @@ class Simulator
 
     double abs_tol;
     double rel_tol;
-    // int burn_counter;
-    int num_burns;
 
     // Target body variables
     std::string target_body;
@@ -53,9 +51,6 @@ class Simulator
     double P0 = 1367;
     double c = 2.998e8;           
     double R0 = 1.496e11;
-
-    int local_burn_counter;
-
  
     // Initialize state vectors
     Eigen::VectorXd state;
@@ -75,7 +70,7 @@ class Simulator
     void ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, const double t);
 
     // Function that calculates derived state values on each simulation loop
-    Eigen::VectorXd build_derived_state(Eigen::VectorXd state, double t);
+    Eigen::VectorXd build_derived_state(Eigen::VectorXd state, double t, int burn_counter);
 
     // Function that writes states to output csv
     void write_output(std::vector<double>& time, std::vector<Eigen::VectorXd>& states, std::vector<Eigen::VectorXd>& derived_states, int thread_num);
