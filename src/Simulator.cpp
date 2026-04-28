@@ -59,7 +59,6 @@ Simulator::Simulator(double tf, Json::Value& spacecraft, Json::Value central_bod
     abs_tol = spacecraft["abs_tol"].asDouble();
     rel_tol = spacecraft["rel_tol"].asDouble();
 
-
     // TODO: Set this up for spacecraft["target_body"]
 
     // Set up settings
@@ -168,12 +167,12 @@ void Simulator::simulate(int t_n){
     std::vector<Eigen::VectorXd> local_derived_states;
     Eigen::VectorXd local_state = state;  // Copy initial state
 
-    num_burns = spacecraft["burns"].size();
+    int num_burns = spacecraft["burns"].size();
 
     if(monte_carlo){
         std::cout << "Monte Carloing" << std::endl;
-        state = mc_state(state);
-        std::cout << state[0] << std::endl;
+        local_state = mc_state(local_state);
+        std::cout << local_state[0] << std::endl;
     }
 
 
@@ -190,20 +189,20 @@ void Simulator::simulate(int t_n){
     };
 
     // Observer lambda function that builds derived state / checks for burns every time step
-    auto observer = [&](Eigen::VectorXd &state_ref, double t) {
-        Eigen::VectorXd derived_state = build_derived_state(state_ref, t);
+    auto observer = [&, num_burns](Eigen::VectorXd &state_ref, double t) {
+        Eigen::VectorXd derived_state = build_derived_state(state_ref, t, local_burn_counter);
         
         local_derived_states.push_back(derived_state);
         local_states.push_back(state_ref);
         local_time.push_back(t);
 
         // Check for collision
-        if (std::hypot(state_ref[0], state_ref[1], state_ref[2]) < central_body["radius"].asDouble()){
-            throw std::runtime_error("Spacecraft impacted the central body surface.");
-        }
+        // if (std::hypot(state_ref[0], state_ref[1], state_ref[2]) < central_body["radius"].asDouble()){
+        //     throw std::runtime_error("Spacecraft impacted the central body surface.");
+        // }
 
         // Check for burns
-        if(t >= spacecraft["burns"][local_burn_counter]["time"].asDouble() && local_burn_counter < num_burns){
+        if(local_burn_counter < num_burns && t >= spacecraft["burns"][local_burn_counter]["time"].asDouble()){
             std::cout << "Executing burn" << std::endl;
             state_ref[3] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][0].asDouble();
             state_ref[4] += spacecraft["burns"][local_burn_counter]["delta_v_icrf"][1].asDouble();
@@ -242,6 +241,12 @@ void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, co
     Eigen::Vector3d r_sc_rel_target = get_target(t, r_sc_rel_sun, true);
 
     // std::cout << r_target_rel_sun[0] << std::endl;
+
+    // TODO: Add cannonball solar radiation pressure model
+
+    double Psrp =  (P0 / c)*std::pow((R0 / (r_sc_rel_sun.norm()  * 1e3)), 2);
+
+    Eigen::Vector3d a_srp = ((Psrp*spacecraft["Cr"].asDouble()*spacecraft["area"].asDouble()) / spacecraft["mass"].asDouble()) * (r_sc_rel_sun / r_sc_rel_sun.norm()) * 1e-3;
     
     double target_accel_x = (-target_body_mu / pow(r_sc_rel_target.norm(), 3)) * r_sc_rel_target[0];
     double target_accel_y = (-target_body_mu / pow(r_sc_rel_target.norm(), 3)) * r_sc_rel_target[1];
@@ -252,14 +257,14 @@ void Simulator::ode_function(const Eigen::VectorXd &x, Eigen::VectorXd &dxdt, co
     dxdt[1] = x[4];
     dxdt[2] = x[5];
 
-    dxdt[3] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[0]) + target_accel_x;
-    dxdt[4] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[1]) + target_accel_y;
-    dxdt[5] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[2]) + target_accel_z;
+    dxdt[3] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[0]) + target_accel_x + a_srp[0];
+    dxdt[4] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[1]) + target_accel_y + a_srp[1];
+    dxdt[5] = (-(mu / std::pow(r_sc_rel_sun.norm(), 3)) * r_sc_rel_sun[2]) + target_accel_z + a_srp[2];
 
 }
 
 // Function that calculates derived state values on each simulation loop
-Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
+Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t, int burn_counter){
 
     double rad_to_deg = 180 / M_PI;
     // DERIVED STATES TO CALCULATE
@@ -376,9 +381,6 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
 
     bool passed_b_plane = b_impact_parameter_s_component > 0;
 
-    
-
-
     // Convert angular quantities to degrees
     f = f * rad_to_deg; 
     E = E * rad_to_deg; 
@@ -389,11 +391,11 @@ Eigen::VectorXd Simulator::build_derived_state(Eigen::VectorXd state, double t){
     omega = omega * rad_to_deg; 
 
 
-    Eigen::VectorXd derived_state(34);
+    Eigen::VectorXd derived_state(35);
 
     derived_state << v, r, Energy, a, n, T, h, h_vec[0], h_vec[1], h_vec[2], 
                  e, e_vec[0], e_vec[1], e_vec[2], p, ra, rp, 
-                 b, f, E, M, gamma, i, laan, omega,
+                 b, f, E, M, gamma, i, laan, omega, burn_counter,
                  V_infinity, b_impact_parameter, beta, b_impact_parameter_x, b_impact_parameter_y,
                  r_soi, in_target_soi,
                  b_impact_parameter_s_component, passed_b_plane;
@@ -419,7 +421,7 @@ void Simulator::write_output(std::vector<double>& time,
     const std::vector<std::string> derived_headers = {
         "v", "r", "E", "a", "n", "T", "h", "h_x", "h_y", "h_z", 
         "e", "e_x", "e_y", "e_z", "p", "ra", "rp", 
-        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega",
+        "b", "f", "E_anom", "M", "gamma", "i", "laan", "omega", "burn_counter",
         "V_infinity", "b_impact_parameter", "beta", "b_impact_parameter_x", "b_impact_parameter_y",
         "r_soi", "within_target_soi", "b_impact_parameter_s_component", "passed_b_plane"
     };
@@ -648,7 +650,6 @@ Eigen::Vector3d Simulator::get_target(double t, Eigen::Vector3d sc_rel_sun, bool
 }
 
 Eigen::VectorXd Simulator::mc_state(Eigen::VectorXd state){
-
 
     // Initialize random class
     std::random_device rd;

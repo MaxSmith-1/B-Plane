@@ -1,7 +1,9 @@
 {
     "name": "Mars Reconnaissance Orbiter",
     "country": "U.S.A",
-    "mass": 1000,
+    "mass": 2180,
+    "area": 20,
+    "Cr": 1.2,
     "date": 1124089200,
     "initial_condition": {
         "ICRF_position": [1.203643094172370E+08, -9.231335976424207E+07,  4.193968810849227E+05], 
@@ -9,7 +11,7 @@
     },
 
     "std": {
-        "ICRF_position": [1,  1,  1], 
+        "ICRF_position": [1, 1, 1], 
         "ICRF_velocity": [1e-6,  1e-6, 1e-6]
     },
 
@@ -18,7 +20,6 @@
     "target_body_mass": 6.4171e23,
     "planet_tol": 1e-4,
 
-    "time_to_burn": 86400,
     "target_b_plane_coordinates": {
         "x": 10000,
         "y":10000

@@ -48,6 +48,8 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.axis('square')
     # plt.legend("Earth")
     # plt.legend(["Sun"] + names)
+    # plt.legend("Earth")
+    # plt.legend(["Sun"] + names)
 
     # J2000 X-Z
     plt.figure(2)
@@ -56,6 +58,7 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
+    # plt.legend(["Sun"] + names)
     # plt.legend(["Sun"] + names)
 
     # J2000 y-Z
@@ -66,6 +69,7 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.ylabel("Z [km]")
     plt.axis('square')
     # plt.legend(["Sun"] + names)
+    # plt.legend(["Sun"] + names)
     
 
     # Classical Orbital Elements vs. time 
@@ -75,12 +79,14 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("time [s]")
     plt.ylabel("a [km]")
     # plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(5)
     plt.title("Eccentricity vs. time")
     plt.plot(sim_df.time, sim_df.e)
     plt.xlabel("time [s]")
     plt.ylabel("e [-]")
+    # plt.legend(names)
     # plt.legend(names)
 
     plt.figure(6)
@@ -89,12 +95,14 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("time [s]")
     plt.ylabel("i [rad]")
     # plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(7)
     plt.title("Longitude of Ascending Node vs. time")
     plt.plot(sim_df.time, sim_df.laan)
     plt.xlabel("time [s]")
     plt.ylabel("Ω [rad]")
+    # plt.legend(names)
     # plt.legend(names)
 
     plt.figure(8)
@@ -103,12 +111,14 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("time [s]")
     plt.ylabel("ω [rad]")
     # plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(9)
     plt.title("True anomaly vs. time")
     plt.plot(sim_df.time, sim_df.f)
     plt.xlabel("time [s]")
     plt.ylabel("f [rad]")
+    # plt.legend(names)
     # plt.legend(names)
 
     plt.figure(10)
@@ -119,12 +129,14 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
     # plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(11)
     plt.title("Vx vs. time")
     plt.plot(sim_df.time, sim_df.Vx)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
+    # plt.legend(names)
     # plt.legend(names)
 
     plt.figure(12)
@@ -133,12 +145,14 @@ for i, file in enumerate(output_directory.iterdir()):
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
     # plt.legend(names)
+    # plt.legend(names)
 
     plt.figure(13)
     plt.title("Vz vs. time")
     plt.plot(sim_df.time, sim_df.Vz)
     plt.xlabel("Time [s]")
     plt.ylabel("Velocity [km/s]")
+    # plt.legend(names)
     # plt.legend(names)
 
 

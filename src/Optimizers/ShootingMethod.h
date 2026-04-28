@@ -19,6 +19,8 @@ class ShootingMethod : public Optimizer {
 
     std::array<double, 2> get_b_coordinates(double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo);
 
+    Eigen::Vector3d get_rtn_burn(Eigen::Vector3d velocity, double tf, Json::Value spacecraft, Json::Value central_body, bool monte_carlo);
+
     Eigen::Matrix<double, 2, 3> get_Jacobean(Eigen::Vector3d velocity);
 
 
