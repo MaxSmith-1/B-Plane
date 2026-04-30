@@ -6,6 +6,7 @@ from pathlib import Path
 
 # ── Constants ─────────────────────────────────────────────
 MARS_R = 3396  # km
+VENUS_R = 6051.8 # km
 SOI_R  = 514_750  # km
 COLS   = [          # only load what you actually plot
     "b_impact_parameter_x",
@@ -15,6 +16,8 @@ COLS   = [          # only load what you actually plot
     "V_infinity",
     "r_soi",
     "passed_b_plane",
+    "b_impact_parameter_s_component",
+    "burn_counter"
 ]
 
 output_directory = Path("output/trials")
@@ -28,12 +31,15 @@ all_time  = []
 all_vinf  = []
 all_rsoi  = []
 all_bmag  = []
+all_b_state = []
 all_color_offsets = []  # cumulative index for rainbow colour
 cumulative = 0
 
+burn_time_list = []
+
 last_df = None           # keep only the last df for animation
 
-mars_circle = np.exp(1j * np.linspace(0, 2 * np.pi, 100)) * MARS_R  # complex trick → 1 alloc
+mars_circle = np.exp(1j * np.linspace(0, 2 * np.pi, 100)) * VENUS_R  # complex trick → 1 alloc
 
 # ── Main loop ─────────────────────────────────────────────
 for file in output_directory.iterdir():
@@ -51,12 +57,19 @@ for file in output_directory.iterdir():
     all_vinf.append(sim_df["V_infinity"].to_numpy())
     all_rsoi.append(sim_df["r_soi"].to_numpy())
     all_bmag.append(sim_df["b_impact_parameter"].to_numpy())
+    all_b_state.append(sim_df["b_impact_parameter_s_component"].to_numpy())
     all_color_offsets.append(np.arange(cumulative, cumulative + n))
     cumulative += n
 
     hit = sim_df[sim_df["passed_b_plane"].astype(bool)]
     if not hit.empty:
         bs_list.append(hit[["b_impact_parameter_x", "b_impact_parameter_y"]].iloc[0].tolist())
+
+
+    burn = sim_df[sim_df["burn_counter"].astype(bool)]
+    if not burn.empty:
+        burn_time_list.append(hit[["time"]].iloc[0].tolist())
+
 
     last_df = sim_df   # only reference, old df gets GC'd next iteration
 
@@ -68,17 +81,18 @@ vinf    = np.concatenate(all_vinf)
 rsoi    = np.concatenate(all_rsoi)
 colors  = np.concatenate(all_color_offsets)
 bmag = np.concatenate(all_bmag)
-
+b_state = np.concatenate(all_b_state)
+burn_time = np.concatenate(burn_time_list)
 
 print(len(all_bx))
 
 # Free the per-file lists immediately
-del all_bx, all_by, all_time, all_vinf, all_rsoi, all_color_offsets, all_bmag
+del all_bx, all_by, all_time, all_vinf, all_rsoi, all_color_offsets, all_bmag, all_b_state
 
 # ── Static figures (draw once, not N times) ───────────────
 fig1, ax1 = plt.subplots(num=1)
 ax1.scatter(bx, by, c=colors, cmap="rainbow", s=2, rasterized=True)  # s=2 + rasterized → faster render
-ax1.plot(mars_circle.real, mars_circle.imag, "red")
+ax1.plot(mars_circle.real, mars_circle.imag, "orange")
 ax1.set(title="B-Plane", xlabel="B_X [km]", ylabel="B_Y [km]")
 
 fig2, ax2 = plt.subplots(num=2)
@@ -93,15 +107,96 @@ fig4, ax4 = plt.subplots(num=4)
 ax4.scatter(time_, bmag, s=2, rasterized=True)  
 ax4.set(title="Impact parameter magnitude", xlabel="time [s]", ylabel="Impact Parameter [km]")
 
+fig6, ax6 = plt.subplots(num=6)
+ax6.scatter(time_, b_state, s=2, rasterized=True)  
+ax6.plot([0, 1.75e7], [0, 0], "r--")
+ax6.set(title="r dot S", xlabel="time [s]", ylabel="r dot s")
+
+from matplotlib.patches import Ellipse
+
 if bs_list:
     bs = pd.DataFrame(bs_list, columns=["b_impact_parameter_x", "b_impact_parameter_y"])
     fig5, ax5 = plt.subplots(num=5)
     ax5.scatter(bs["b_impact_parameter_x"], bs["b_impact_parameter_y"])
-    ax5.plot(mars_circle.real, mars_circle.imag, "red")
+    ax5.plot(mars_circle.real, mars_circle.imag, "orange")
+
+    # ── Sigma ellipsoids ──────────────────────────────────
+    mean_x = bs["b_impact_parameter_x"].mean()
+    mean_y = bs["b_impact_parameter_y"].mean()
+
+    std_x = bs["b_impact_parameter_x"].std()
+    std_y = bs["b_impact_parameter_y"].std()
+
+
+
+    print("Mean b-coordinates: ")
+    print(mean_x)
+    print(mean_y)
+
+    print("std in b-coordinates: ")
+    print(std_x)
+    print(std_y)
+
+
+    print("Burn time statistics")
+    print(len(burn_time))
+    print(type(burn_time))
+
+    print(burn_time.mean())
+    print(burn_time.std())
+
+    # STD = 10 seconds for MRO
+    # STD = 3 seconds for VEO
+ 
+    cov = np.cov(bs["b_impact_parameter_x"], bs["b_impact_parameter_y"])
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+
+    # Angle of the principal axis
+    angle = np.degrees(np.arctan2(eigenvectors[1, 1], eigenvectors[0, 1]))
+
+    for n_sigma, color, alpha in [(1, "cyan", 0.6), (2, "yellow", 0.5), (3, "magenta", 0.4)]:
+        width  = 2 * n_sigma * np.sqrt(eigenvalues[1])
+        height = 2 * n_sigma * np.sqrt(eigenvalues[0])
+        ellipse = Ellipse(
+            xy=(mean_x, mean_y),
+            width=width,
+            height=height,
+            angle=angle,
+            edgecolor=color,
+            facecolor="none",
+            linewidth=1.5
+           
+        )
+        ax5.add_patch(ellipse)
+
+    ax5.plot(mean_x, mean_y, "*", color="white", markersize=10)
+    # ax5.legend()
+    # ─────────────────────────────────────────────────────
+
     ax5.set(title="Impact Parameters on B-Plane", xlabel="B_X [km]", ylabel="B_Y [km]")
-    ax5.set_aspect('equal')
+    # ax5.set_aspect('equal')
 
 
+
+veo_residuals = [474602, 7336.83, 100.309, 1.33305]
+
+mro_residuals = [2.40452e+06, 54935.7, 67.3432, 0.0185212]
+
+
+
+fig7, ax7 = plt.subplots(num=7)
+ax7.plot(veo_residuals, marker='o')  
+ax7.set(title="Residual vs. Iteration", xlabel="Iteration [-]", ylabel="|F|")
+
+fig8, ax8 = plt.subplots(num=8)
+ax8.plot(mro_residuals, marker='o')  
+ax8.set(title="Residual vs. Iteration", xlabel="Iteration [-]", ylabel="|F|")
+
+
+
+
+
+mro_resudials = []
 # ── Animation (on last_df only) ───────────────────────────
 # if last_df is not None:
 #     df = last_df

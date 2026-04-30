@@ -23,6 +23,8 @@ class ShootingMethod : public Optimizer {
 
     Eigen::Matrix<double, 2, 3> get_Jacobean(Eigen::Vector3d velocity);
 
+    Eigen::Vector2d get_residual(Eigen::Vector3d velocitym, double bx_target, double by_target);
+
 
 
 

@@ -63,8 +63,8 @@ Simulator::Simulator(double tf, Json::Value& spacecraft, Json::Value central_bod
 
     // Set up settings
 
-    Json::Value target = spacecraft["target_body"];
-    Json::Value target_mass = spacecraft["target_body_mass"];
+    Json::Value target = spacecraft["target_info"]["target_body"];
+    Json::Value target_mass = spacecraft["target_info"]["target_body_mass"];
 
     target_body = target.asString();
     target_body_mu = G * target_mass.asDouble();
@@ -72,7 +72,7 @@ Simulator::Simulator(double tf, Json::Value& spacecraft, Json::Value central_bod
 
 
     // Planetary tol is the number of divisions
-    std::string planetary_step_size = std::to_string(static_cast<int>(tf * spacecraft["planet_tol"].asDouble()));
+    std::string planetary_step_size = std::to_string(static_cast<int>(tf * spacecraft["target_info"]["planet_tol"].asDouble()));
 
     // Dates are inputted as unix time, outputted as date strings
     std::string initial_date = unix_to_string(spacecraft["date"].asInt());

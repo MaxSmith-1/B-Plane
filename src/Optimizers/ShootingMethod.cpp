@@ -21,11 +21,10 @@ ShootingMethod::ShootingMethod(double tf, double t_burn, Json::Value spacecraft,
 
 Eigen::Vector3d ShootingMethod::optimize(){
 
-    double residual = std::numeric_limits<double>::infinity();
-    double threshold = spacecraft["b-threshold"].asDouble();
+    double threshold = spacecraft["optimization_info"]["b-threshold"].asDouble();
 
-    double bx_target = spacecraft["target_b_plane_coordinates"]["x"].asDouble();
-    double by_target = spacecraft["target_b_plane_coordinates"]["y"].asDouble();
+    double bx_target = spacecraft["optimization_info"]["target_b_plane_coordinates"]["x"].asDouble();
+    double by_target = spacecraft["optimization_info"]["target_b_plane_coordinates"]["y"].asDouble();
 
     Eigen::Vector3d velocity(0,0,0);
 
@@ -34,9 +33,11 @@ Eigen::Vector3d ShootingMethod::optimize(){
     // If no t_burn was specified, optimize for burn time by sweeping Jacobean matricies
     // Get burn time resulution down to the hour
 
-    std::cout << "Optimizing burn time" << std::endl;
+    
     double t_burn_final = 0;     
     if (t_burn == 0.0){
+
+        std::cout << "Optimizing burn time" << std::endl;
 
         double t_max = tf;
 
@@ -93,55 +94,13 @@ Eigen::Vector3d ShootingMethod::optimize(){
     }
 
     Eigen::Vector3d dv(0,0,0);  
+    // Compute initial residual for
+    
+    Eigen::Vector2d F = get_residual(velocity + dv, bx_target, by_target);
 
+    double residual = F.norm();
 
     while(residual > threshold){
-
-        // Clear burn plan / add guess burn
-        std::cout << "Adding new burn: " << std::endl;
-        add_burn(velocity);
-
-        // Get b-plane coordinates
-        std::cout << "Running nominal sim: " << std::endl;
-        std::array<double, 2> b_coords = get_b_coordinates(tf, spacecraft, central_body, false);
-
-        int backtrack_count = 0;
-        bool cant_pass = false;
-        while(std::isnan(b_coords[0]) || (b_coords[0] == 0 && b_coords[1] == 0)){
-            std::cout << "WARNING: B-plane not crossed, backtracking" << std::endl;
-            if(backtrack_count++ > 10) { 
-                std::cerr << "ERROR: Could not find B-plane crossing" << std::endl;
-                cant_pass = true;
-                break; 
-            }
-            velocity = velocity - dv * 0.5;
-            dv = dv * 0.5;  // shrink dv so next backtrack is smaller
-            add_burn(velocity);
-            b_coords = get_b_coordinates(tf, spacecraft, central_body, false);
-            
-        }
-
-        if(cant_pass){
-            Eigen::Vector3d return_val(0,0,0);
-            return return_val;
-        }
-
-        double bx_guess = b_coords[0];
-        double by_guess = b_coords[1];
-
-        std::cout << bx_guess << std::endl;
-
-        std::cout << by_guess << std::endl;
-        
-        // Compute residual vector
-        Eigen::Vector2d F(bx_guess - bx_target, by_guess - by_target);
-
-        residual = F.norm();
-
-        std::cout << "Residuals: " << std::endl;
-        std::cout << F[0] << std::endl;
-
-        std::cout << F[1] << std::endl;
 
         // Compute Jacobean (for delta v at t_burn)
         std::cout << "Building Jacobean" << std::endl;
@@ -150,20 +109,28 @@ Eigen::Vector3d ShootingMethod::optimize(){
         std::cout << "Jacobean: " << std::endl;
         std::cout << J << std::endl;
 
-
         // Compute next guess / iterate
         Eigen::Matrix<double, 3, 3> JtJ = J.transpose() * J;
-        std::cout << "JtJ determinant: " << JtJ.determinant() << std::endl;
+
+        // -JT(JJT)-1 * F with better numerical precision
         dv = -J.bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV).solve(F);
         
-        // Velocity is in ICRF coordinate frame
-        // TODO: rotate to local RTN frame
-
+        // Velocity is in J2000 coordinate frame
         std::cout << "dv: " << std::endl;
         std::cout << dv << std::endl;
         velocity = velocity + dv;
 
         count += 1;
+
+        // Compute residual vector
+        F = get_residual(velocity, bx_target, by_target);
+
+        residual = F.norm();
+
+        std::cout << "Residuals: " << std::endl;
+        std::cout << F[0] << std::endl;
+
+        std::cout << F[1] << std::endl;
         
         std::cout << "Trial: " << count << std::endl;
         std::cout << "New residual magnitude:" << std::endl;
@@ -342,11 +309,9 @@ Eigen::Vector3d ShootingMethod::get_rtn_burn(Eigen::Vector3d velocity, double tf
     return Functions::icrf_to_rtn_delta_v(burn_state, velocity);
 }
 
-
-
 Eigen::Matrix<double, 2, 3> ShootingMethod::get_Jacobean(Eigen::Vector3d velocity){
 
-    double eps = spacecraft["eps"].asDouble();
+    double eps = spacecraft["optimization_info"]["eps"].asDouble();
 
     Eigen::Matrix<double, 2, 3> J;
 
@@ -423,3 +388,26 @@ void ShootingMethod::add_burn(Eigen::Vector3d velocity){
     
 }
 
+Eigen::Vector2d ShootingMethod::get_residual(Eigen::Vector3d velocity, double bx_target, double by_target){
+
+        // Clear burn plan / add guess burn
+        std::cout << "Adding new burn: " << std::endl;
+        add_burn(velocity);
+
+        // Get b-plane coordinates
+        std::cout << "Running nominal sim: " << std::endl;
+        std::array<double, 2> b_coords = get_b_coordinates(tf, spacecraft, central_body, false);
+
+        double bx_guess = b_coords[0];
+        double by_guess = b_coords[1];
+
+        std::cout << bx_guess << std::endl;
+
+        std::cout << by_guess << std::endl;
+        
+        // Compute residual vector
+        Eigen::Vector2d F(bx_guess - bx_target, by_guess - by_target);
+
+        return F;
+
+}

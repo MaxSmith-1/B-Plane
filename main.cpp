@@ -82,19 +82,29 @@ int main(int argc, char* argv[]){
     // One off run
     else{
 
-
+        // sim.simulate(0);
         // TODO: Get t_burn from json or input
         std::cout << "Optimizing" << std::endl;
 
-        double t_burn = spacecraft_json["t_burn"].isNull() ? 0.0 : spacecraft_json["t_burn"].asDouble();
+        double t_burn = spacecraft_json["optimization_info"]["t_burn"].isNull() ? 0.0 : spacecraft_json["optimization_info"]["t_burn"].asDouble();
 
-        ShootingMethod sm(tf, t_burn, spacecraft_json, body_json);
 
-        Eigen::Vector3d velocity = sm.optimize();
+        std::cout << t_burn << std::endl;
+        if(spacecraft_json["optimization_info"]["method"] == "shooting"){
+            ShootingMethod sm(tf, t_burn, spacecraft_json, body_json);
 
-        std::cout << "Vr:" << velocity[0] << std::endl;
-        std::cout << "Vt:" << velocity[1] << std::endl;
-        std::cout << "Vn:" << velocity[2] << std::endl;
+            Eigen::Vector3d velocity = sm.optimize();
+
+            std::cout << "Vr:" << velocity[0] << std::endl;
+            std::cout << "Vt:" << velocity[1] << std::endl;
+            std::cout << "Vn:" << velocity[2] << std::endl;
+
+            std::cout << "|V|: " << velocity.norm() << std::endl;
+
+
+    }
+
+
         
     }
     // Call this function in python and generate some basic plots

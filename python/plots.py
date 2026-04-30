@@ -24,7 +24,11 @@ for i in range(1, 4):
     # plt.legend(["Sun"])
 
 
+target_df = pd.read_csv("output/planets/499.csv")
 
+target_df.columns = ["empty", "date", "X", "Y", "Z", "Vx", "Vy", "Vz", "emprt"]
+
+ref_df = pd.read_csv("python/veo_ref_traj.csv")
 
 for i, file in enumerate(output_directory.iterdir()):
 
@@ -42,6 +46,7 @@ for i, file in enumerate(output_directory.iterdir()):
     # J2000 X-Y
     plt.figure(1)
     plt.title("J2000 X vs. Y plane")    
+    plt.scatter(target_df.X, target_df.Y, c='red')
     plt.plot(sim_df.ICRF_X, sim_df.ICRF_Y)
     plt.xlabel("X [km]")
     plt.ylabel("Y [km]")
@@ -54,7 +59,8 @@ for i, file in enumerate(output_directory.iterdir()):
     # J2000 X-Z
     plt.figure(2)
     plt.title("J2000 X vs. Z plane")
-    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z, color="#00BFFF")
+    plt.scatter(target_df.X, target_df.Z, c='red')
+    plt.plot(sim_df.ICRF_X, sim_df.ICRF_Z)
     plt.xlabel("X [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
@@ -63,9 +69,10 @@ for i, file in enumerate(output_directory.iterdir()):
 
     # J2000 y-Z
     plt.figure(3)
-    plt.title("J2000 Y vs. Z plane")    
-    plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z, color="#00BFFF")
-    plt.xlabel("y [km]")
+    plt.title("J2000 Y vs. Z plane")  
+    plt.scatter(target_df.Y, target_df.Z, c='red')  
+    plt.plot(sim_df.ICRF_Y, sim_df.ICRF_Z, color="white")
+    plt.xlabel("Y [km]")
     plt.ylabel("Z [km]")
     plt.axis('square')
     # plt.legend(["Sun"] + names)
@@ -157,35 +164,38 @@ for i, file in enumerate(output_directory.iterdir()):
 
 
 
-ref_df = pd.read_csv("python/ref_traj.csv")
 
-target_df = pd.read_csv("output/planets/499.csv")
-
-target_df.columns = ["empty", "date", "X", "Y", "Z", "Vx", "Vy", "Vz", "emprt"]
 
 
 plt.figure(1)
-# plt.plot(ref_df.X, ref_df.Y, color="#00E676")
-plt.scatter(target_df.X, target_df.Y, c='red')
+
+plt.plot(ref_df.X, ref_df.Y, color="#26DFF0")
+
 # plt.legend(["Sun"] + names + ["Mars"])
 ref_df["v_mag"] = np.sqrt(ref_df["VX"] ** 2 + ref_df["VY"] ** 2 + ref_df["VZ"] ** 2)
 
+#plt.legend(["Sun", "Mars", "Integrated Trajectory", "Tabulated Trajectory"])
+
 plt.figure(2)
-# plt.plot(ref_df.X, ref_df.Z, color="#00E676")
-plt.scatter(target_df.X, target_df.Z, c='red')
+
+plt.plot(ref_df.X, ref_df.Z,  color="#26DFF0")
+
 # plt.legend(["Sun"] + names + ["Mars"])
+#plt.legend(["Sun", "Mars", "Integrated Trajectory", "Tabulated Trajectory"])
 
 plt.figure(3)
-# plt.plot(ref_df.Y, ref_df.Z, color="#00E676")
-plt.scatter(target_df.Y, target_df.Z, c='red')
+
+plt.plot(ref_df.Y, ref_df.Z,  color="#26DFF0")
+
 # plt.legend(["Sun"] + names + ["Mars"])
+#plt.legend(["Sun", "Mars", "Integrated Trajectory", "Tabulated Trajectory"])
 
 
 
 
-# plt.figure(10)
-# plt.plot(ref_df.time, ref_df.v_mag)
-# plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
+plt.figure(10)
+plt.plot(ref_df.time, ref_df.v_mag)
+#plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
 # plt.figure(11)
 # plt.plot(ref_df.time, ref_df.VX)
@@ -200,8 +210,26 @@ plt.scatter(target_df.Y, target_df.Z, c='red')
 # plt.plot(ref_df.time, ref_df.VZ)
 # plt.legend(names + ["M.R.O, NASA Horizons Trajectory"])
 
+x_diff = abs(sim_df["ICRF_X"].iloc[-1] - ref_df["X"].iloc[-1])
+print(x_diff)
+y_diff = abs(sim_df["ICRF_Y"].iloc[-1] - ref_df["Y"].iloc[-1])
+print(y_diff)
+z_diff = abs(sim_df["ICRF_Z"].iloc[-1] - ref_df["Z"].iloc[-1])
+print(z_diff)
+
+print("Simmed r")
+print(np.linalg.norm(np.array([sim_df["ICRF_X"].iloc[-1], sim_df["ICRF_Y"].iloc[-1], sim_df["ICRF_Z"].iloc[-1]])))
+
+print("tabulated r")
+print(np.linalg.norm(np.array([ref_df["X"].iloc[-1], ref_df["Y"].iloc[-1], ref_df["Z"].iloc[-1]])))
+
+print("r difference")
+
+print(np.linalg.norm(np.array([x_diff, y_diff, z_diff])))
+
+print("r percent difference")
+print(np.linalg.norm(np.array([x_diff, y_diff, z_diff])) / np.linalg.norm(np.array([ref_df["X"].iloc[-1], ref_df["Y"].iloc[-1], ref_df["Z"].iloc[-1]])))
 
 
 plt.show()
-
 

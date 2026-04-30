@@ -15,19 +15,24 @@
         "ICRF_velocity": [1e-6,  1e-6, 1e-6]
     },
 
-    "target_body": "299",
-    "target_body_name": "Venus",
-    "target_body_mass": 4.871e24,
-    "planet_tol": 1e-4,
+    "target_info" : {
+        "target_body": "299",
+        "target_body_name": "Venus",
+        "target_body_mass": 4.871e24,
+        "planet_tol": 1e-4
+    },
 
-    "target_b_plane_coordinates": {
-        "x": 0,
-        "y":-10000
+    "optimization_info" : {
+        "method" : "shooting",
+        "target_b_plane_coordinates": {
+            "x": 0,
+            "y":-6301.8
+        },
+        "eps": 0.001,
+        "b-threshold": 10,
+        "t_burn": 5000000
     },
     
     "abs_tol": 1e-10,
-    "rel_tol": 1e-10,
-    "eps": 0.001,
-    "b-threshold": 100,
-    "t_burn": 5000000
+    "rel_tol": 1e-10
 }

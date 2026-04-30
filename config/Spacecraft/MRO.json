@@ -3,7 +3,7 @@
     "country": "U.S.A",
     "mass": 2180,
     "area": 20,
-    "Cr": 1.2,
+    "Cr": 1.3,
     "date": 1124089200,
     "initial_condition": {
         "ICRF_position": [1.203643094172370E+08, -9.231335976424207E+07,  4.193968810849227E+05], 
@@ -15,19 +15,32 @@
         "ICRF_velocity": [1e-6,  1e-6, 1e-6]
     },
 
-    "target_body": "499",
-    "target_body_name": "Mars",
-    "target_body_mass": 6.4171e23,
-    "planet_tol": 1e-4,
+    "target_info" : {
+        "target_body": "499",
+        "target_body_name": "Mars",
+        "target_body_mass": 6.4171e23,
+        "planet_tol": 1e-4
 
-    "target_b_plane_coordinates": {
-        "x": 10000,
-        "y":10000
     },
-    
+
+    "burns" : [{
+
+        "time": 10000000,
+        "delta_v_icrf": [0.242237, -0.0418023, -0.305083]
+    }],
+
+    "optimization_info" : {
+        "method" : "shooting",
+        "target_b_plane_coordinates": {
+            "x": 3696,
+            "y":0
+        },
+        "eps": 0.001,
+        "b-threshold": 10,
+        "t_burn": 10000000
+    },
+
     "abs_tol": 1e-10,
-    "rel_tol": 1e-10,
-    "eps": 0.001,
-    "b-threshold": 100,
-    "t_burn": 10000000
+    "rel_tol": 1e-10
+
 }
